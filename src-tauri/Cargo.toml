@@ -1,0 +1,18 @@
+[package]
+name = "spoons-and-forks"
+version = "1.0.0-rc.1"
+description = "Spoons and Forks - Hyper-minimalist Calorie & Macro Tracker"
+authors = ["You"]
+edition = "2021"
+
+[lib]
+name = "spoons_and_forks_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
