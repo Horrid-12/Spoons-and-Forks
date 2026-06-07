@@ -184,16 +184,26 @@ if (-not $SkipBuild) {
 
     Write-Section "4/5  Building Tauri installer"
     npm run tauri build
+
+    Write-Section "4b   Building Android APK/AAB"
+    npx tauri android build
 } else {
     Write-Section "3/5  Skipping install (--SkipBuild)"
     Write-Section "4/5  Skipping Tauri build (--SkipBuild)"
+    Write-Section "4b   Skipping Android build (--SkipBuild)"
 }
 
-# Locate the built bundles (Tauri drops them in src-tauri/target/release/bundle)
+# Locate the built bundles
+# Desktop: src-tauri/target/release/bundle
+# Android: src-tauri/gen/android/app/build/outputs/
 $bundleRoot = Join-Path $ProjectRoot "src-tauri/target/release/bundle"
+$androidRoot = Join-Path $ProjectRoot "src-tauri/gen/android/app/build/outputs"
 $artifacts = @()
 if (Test-Path $bundleRoot) {
-    $artifacts = Get-ChildItem -Path $bundleRoot -Recurse -File -Include "*.msi","*.exe","*.nsis","*.dmg","*.AppImage","*.deb","*.app" -ErrorAction SilentlyContinue
+    $artifacts += Get-ChildItem -Path $bundleRoot -Recurse -File -Include "*.msi","*.exe","*.nsis","*.dmg","*.AppImage","*.deb","*.app" -ErrorAction SilentlyContinue
+}
+if (Test-Path $androidRoot) {
+    $artifacts += Get-ChildItem -Path $androidRoot -Recurse -File -Include "*.apk","*.aab" -ErrorAction SilentlyContinue
 }
 
 if ($artifacts.Count -gt 0) {

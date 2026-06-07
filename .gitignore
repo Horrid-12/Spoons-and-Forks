@@ -24,7 +24,7 @@ dist-ssr
 *.sln
 *.sw?
 Agent.md
- 
+ release.ps1
 
 # Rust / Tauri
 src-tauri/target/

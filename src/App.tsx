@@ -1,4 +1,4 @@
-import { useState, CSSProperties } from 'react';
+import { useState, useEffect, CSSProperties } from 'react';
 import { Header } from './components/Header';
 import { LogInput } from './components/LogInput';
 import { MacroDashboard } from './components/MacroDashboard';
@@ -7,12 +7,28 @@ import { SettingsModal } from './components/SettingsModal';
 import { HistoryModal } from './components/HistoryModal';
 import { useSettings } from './hooks/useSettings';
 import { useFoodLog } from './hooks/useFoodLog';
+import { importFromLocalStorage } from './lib/db';
+import { DEFAULT_SETTINGS } from './lib/defaults';
 
 function App() {
-  const { settings, setSettings } = useSettings();
-  const { entries, todaysEntries, addEntry, deleteEntry, updateEntry } = useFoodLog(settings.dayStartHour);
+  const { settings, setSettings, loading: settingsLoading } = useSettings();
+  const { entries, todaysEntries, addEntry, deleteEntry, updateEntry, loading: logLoading } =
+    useFoodLog(settings?.dayStartHour ?? DEFAULT_SETTINGS.dayStartHour);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [imported, setImported] = useState(false);
+
+  useEffect(() => {
+    importFromLocalStorage().then(did => { if (did) setImported(true); });
+  }, []);
+
+  if (settingsLoading || logLoading || !settings) {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-zinc-400 flex items-center justify-center font-mono text-[10px] uppercase tracking-widest">
+        // initializing local store
+      </div>
+    );
+  }
 
   const containerStyle = {
     '--accent': settings.accentColor,
@@ -30,8 +46,14 @@ function App() {
           dayStartHour={settings.dayStartHour}
         />
 
-        <main className="space-y-6">
-          <section>
+        {imported && (
+          <div className="mt-3 mb-3 text-[10px] font-mono text-zinc-500 uppercase tracking-widest">
+            // imported legacy data from localStorage
+          </div>
+        )}
+
+        <main className="space-y-6 md:space-y-6 pb-28 md:pb-0">
+          <section className="hidden md:block">
             <LogInput onLog={addEntry} apiKey={settings.geminiApiKey} />
           </section>
 
@@ -82,6 +104,10 @@ function App() {
         dayStartHour={settings.dayStartHour}
         onDelete={deleteEntry}
       />
+
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--bg)]/95 backdrop-blur-sm border-t border-zinc-800 p-3">
+        <LogInput onLog={addEntry} apiKey={settings.geminiApiKey} />
+      </div>
     </div>
   );
 }

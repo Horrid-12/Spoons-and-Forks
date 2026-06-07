@@ -1,44 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Settings } from '../types';
-
-const DEFAULT_SETTINGS: Settings = {
-  accentColor: '#34d399',
-  bgColor: '#09090b',
-  cardColor: '#18181b',
-  fontColor: '#d4d4d8',
-  dayStartHour: 5,
-  geminiApiKey: '',
-  targets: {
-    calories: 2500,
-    protein: 150,
-    carbs: 300,
-    fat: 80,
-  },
-};
-
-const STORAGE_KEY = 'spoons-and-forks-settings';
+import { loadSettings, saveSettings } from '../lib/db';
 
 export const useSettings = () => {
-  const [settings, setSettings] = useState<Settings>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return { 
-          ...DEFAULT_SETTINGS, 
-          ...parsed, 
-          targets: { ...DEFAULT_SETTINGS.targets, ...parsed.targets } 
-        };
-      }
-    } catch (e) {
-      console.error("Failed to load settings", e);
-    }
-    return DEFAULT_SETTINGS;
-  });
+  const [settings, setSettingsState] = useState<Settings | null>(null);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    let active = true;
+    loadSettings().then(s => { if (active) setSettingsState(s); });
+    return () => { active = false; };
+  }, []);
+
+  const setSettings = useCallback(async (updater: Settings | ((prev: Settings) => Settings)) => {
+    const current = settings ?? await loadSettings();
+    const next = typeof updater === 'function' ? updater(current) : updater;
+    setSettingsState(next);
+    await saveSettings(next);
   }, [settings]);
 
-  return { settings, setSettings };
+  return { settings, setSettings, loading: settings === null };
 };

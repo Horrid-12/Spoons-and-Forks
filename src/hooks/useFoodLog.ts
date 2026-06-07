@@ -1,42 +1,51 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { FoodEntry } from '../types';
 import { getLogicalDayString } from '../lib/dayLogic';
-
-const STORAGE_KEY = 'nutrack-log';
+import {
+  loadEntries,
+  insertEntry,
+  deleteEntryById,
+  updateEntryById,
+} from '../lib/db';
 
 export const useFoodLog = (dayStartHour: number) => {
-  const [entries, setEntries] = useState<FoodEntry[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (e) {
-      console.error("Failed to load food log", e);
-    }
-    return [];
-  });
+  const [entries, setEntries] = useState<FoodEntry[] | null>(null);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-  }, [entries]);
-
-  const addEntry = useCallback((entry: FoodEntry) => {
-    setEntries(prev => [entry, ...prev]);
+    let active = true;
+    loadEntries().then(es => { if (active) setEntries(es); });
+    return () => { active = false; };
   }, []);
 
-  const deleteEntry = useCallback((id: string) => {
-    setEntries(prev => prev.filter(e => e.id !== id));
+  const addEntry = useCallback(async (entry: FoodEntry) => {
+    await insertEntry(entry);
+    setEntries(prev => prev ? [entry, ...prev] : [entry]);
   }, []);
 
-  const updateEntry = useCallback((id: string, patch: Partial<FoodEntry>) => {
-    setEntries(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e));
+  const deleteEntry = useCallback(async (id: string) => {
+    await deleteEntryById(id);
+    setEntries(prev => prev ? prev.filter(e => e.id !== id) : prev);
   }, []);
 
-  const currentDayString = getLogicalDayString(Date.now(), dayStartHour);
-  const todaysEntries = entries.filter(
-    e => getLogicalDayString(e.timestamp, dayStartHour) === currentDayString
-  );
+  const updateEntry = useCallback(async (id: string, patch: Partial<FoodEntry>) => {
+    await updateEntryById(id, patch);
+    setEntries(prev => prev ? prev.map(e => e.id === id ? { ...e, ...patch } : e) : prev);
+  }, []);
 
-  return { entries, todaysEntries, addEntry, deleteEntry, updateEntry };
+  const todaysEntries = useMemo(() => {
+    if (!entries) return [];
+    const today = getLogicalDayString(Date.now(), dayStartHour);
+    return entries.filter(
+      e => getLogicalDayString(e.timestamp, dayStartHour) === today
+    );
+  }, [entries, dayStartHour]);
+
+  return {
+    entries: entries ?? [],
+    todaysEntries,
+    addEntry,
+    deleteEntry,
+    updateEntry,
+    loading: entries === null,
+  };
 };

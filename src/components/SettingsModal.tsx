@@ -6,7 +6,7 @@ interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   settings: Settings;
-  onSave: (newSettings: Settings) => void;
+  onSave: (newSettings: Settings | ((prev: Settings) => Settings)) => void | Promise<void>;
 }
 
 const PRESET_COLORS = [
@@ -75,8 +75,8 @@ export const SettingsModal = ({ isOpen, onClose, settings, onSave }: SettingsMod
 
   if (!isOpen) return null;
 
-  const handleSave = () => {
-    onSave(localSettings);
+  const handleSave = async () => {
+    await onSave(localSettings);
     onClose();
   };
 
