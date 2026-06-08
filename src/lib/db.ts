@@ -1,5 +1,6 @@
 import Database from '@tauri-apps/plugin-sql';
 import type { FoodEntry, Settings, MacroTargets } from '../types';
+import { supabase } from './supabaseClient';
 
 const DB_URL = 'sqlite:spoons-and-forks.db';
 
@@ -55,7 +56,7 @@ export async function loadSettings(): Promise<Settings> {
   }
   const obj: Record<string, unknown> = {};
   for (const { key, value } of rows) {
-    try { obj[key] = JSON.parse(value); } catch { /* skip malformed */ }
+    try { obj[key] = JSON.parse(value); } catch {}
   }
   return {
     ...SETTINGS_DEFAULTS,
@@ -122,6 +123,20 @@ export async function loadEntries(): Promise<FoodEntry[]> {
   return rows.map(rowToEntry);
 }
 
+async function syncToSupabase(entry: FoodEntry, action: 'insert' | 'update' | 'delete') {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  if (action === 'delete') {
+    await supabase.from('entries').delete().eq('id', entry.id);
+  } else {
+    await supabase.from('entries').upsert({
+      ...entry,
+      user_id: user.id,
+    });
+  }
+}
+
 export async function insertEntry(e: FoodEntry): Promise<void> {
   const db = await getDb();
   await db.execute(
@@ -129,11 +144,14 @@ export async function insertEntry(e: FoodEntry): Promise<void> {
      VALUES($1,$2,$3,$4,$5,$6,$7)`,
     [e.id, e.timestamp, e.description, e.calories, e.protein, e.carbs, e.fat]
   );
+  await syncToSupabase(e, 'insert');
 }
 
 export async function deleteEntryById(id: string): Promise<void> {
   const db = await getDb();
+  const entry = await db.select<EntryRow[]>(`SELECT * FROM entries WHERE id = $1`, [id]);
   await db.execute(`DELETE FROM entries WHERE id = $1`, [id]);
+  if (entry.length > 0) await syncToSupabase(rowToEntry(entry[0]), 'delete');
 }
 
 export async function updateEntryById(id: string, patch: Partial<FoodEntry>): Promise<void> {
@@ -153,6 +171,39 @@ export async function updateEntryById(id: string, patch: Partial<FoodEntry>): Pr
     `UPDATE entries SET ${fields.join(', ')} WHERE id = $${i}`,
     values
   );
+  const entry = await db.select<EntryRow[]>(`SELECT * FROM entries WHERE id = $1`, [id]);
+  if (entry.length > 0) await syncToSupabase(rowToEntry(entry[0]), 'update');
+}
+
+export async function pullFromSupabase(): Promise<number> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return 0;
+
+  const { data: remote, error } = await supabase
+    .from('entries')
+    .select('*')
+    .eq('user_id', user.id);
+
+  if (error || !remote || remote.length === 0) return 0;
+
+  const db = await getDb();
+  let count = 0;
+  await db.execute('BEGIN');
+  try {
+    for (const r of remote) {
+      const result = await db.execute(
+        `INSERT OR IGNORE INTO entries(id,timestamp,description,calories,protein,carbs,fat)
+         VALUES($1,$2,$3,$4,$5,$6,$7)`,
+        [r.id, r.timestamp, r.description, r.calories, r.protein, r.carbs, r.fat]
+      );
+      if (result.rowsAffected > 0) count++;
+    }
+    await db.execute('COMMIT');
+  } catch (e) {
+    await db.execute('ROLLBACK');
+    throw e;
+  }
+  return count;
 }
 
 export async function importFromLocalStorage(): Promise<boolean> {

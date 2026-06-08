@@ -1,26 +1,48 @@
-import { useState, useEffect, CSSProperties } from 'react';
+import { useState, useEffect, useCallback, CSSProperties } from 'react';
 import { Header } from './components/Header';
 import { LogInput } from './components/LogInput';
 import { MacroDashboard } from './components/MacroDashboard';
 import { TodaysLog } from './components/TodaysLog';
 import { SettingsModal } from './components/SettingsModal';
 import { HistoryModal } from './components/HistoryModal';
+import { AuthModal } from './components/AuthModal';
 import { useSettings } from './hooks/useSettings';
 import { useFoodLog } from './hooks/useFoodLog';
-import { importFromLocalStorage } from './lib/db';
+import { importFromLocalStorage, pullFromSupabase } from './lib/db';
+import { supabase } from './lib/supabaseClient';
+import type { User } from '@supabase/supabase-js';
 import { DEFAULT_SETTINGS } from './lib/defaults';
 
 function App() {
   const { settings, setSettings, loading: settingsLoading } = useSettings();
-  const { entries, todaysEntries, addEntry, deleteEntry, updateEntry, loading: logLoading } =
+  const { entries, todaysEntries, addEntry, deleteEntry, updateEntry, reload, loading: logLoading } =
     useFoodLog(settings?.dayStartHour ?? DEFAULT_SETTINGS.dayStartHour);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [imported, setImported] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [synced, setSynced] = useState(0);
 
   useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setUser(data.user);
+    });
     importFromLocalStorage().then(did => { if (did) setImported(true); });
   }, []);
+
+  const handleAuthChange = useCallback(async () => {
+    const { data } = await supabase.auth.getUser();
+    setUser(data.user ?? null);
+
+    if (data.user) {
+      const count = await pullFromSupabase();
+      if (count > 0) {
+        setSynced(count);
+        reload();
+      }
+    }
+  }, [reload]);
 
   if (settingsLoading || logLoading || !settings) {
     return (
@@ -43,12 +65,20 @@ function App() {
         <Header
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenHistory={() => setIsHistoryOpen(true)}
+          onOpenAuth={() => setIsAuthOpen(true)}
+          user={user}
           dayStartHour={settings.dayStartHour}
         />
 
         {imported && (
           <div className="mt-3 mb-3 text-[10px] font-mono text-zinc-500 uppercase tracking-widest">
             // imported legacy data from localStorage
+          </div>
+        )}
+
+        {synced > 0 && (
+          <div className="mt-3 mb-3 text-[10px] font-mono text-emerald-500 uppercase tracking-widest">
+            // synced {synced} entries from cloud
           </div>
         )}
 
@@ -103,6 +133,12 @@ function App() {
         entries={entries}
         dayStartHour={settings.dayStartHour}
         onDelete={deleteEntry}
+      />
+
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onAuthChange={handleAuthChange}
       />
 
       <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--bg)]/95 backdrop-blur-sm border-t border-zinc-800 p-3">

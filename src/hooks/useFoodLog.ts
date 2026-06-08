@@ -10,12 +10,15 @@ import {
 
 export const useFoodLog = (dayStartHour: number) => {
   const [entries, setEntries] = useState<FoodEntry[] | null>(null);
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
     let active = true;
     loadEntries().then(es => { if (active) setEntries(es); });
     return () => { active = false; };
-  }, []);
+  }, [version]);
+
+  const reload = useCallback(() => setVersion(v => v + 1), []);
 
   const addEntry = useCallback(async (entry: FoodEntry) => {
     await insertEntry(entry);
@@ -46,6 +49,7 @@ export const useFoodLog = (dayStartHour: number) => {
     addEntry,
     deleteEntry,
     updateEntry,
+    reload,
     loading: entries === null,
   };
 };

@@ -1,14 +1,22 @@
-import { Settings as SettingsIcon, Utensils, History } from 'lucide-react';
+import { Settings as SettingsIcon, Utensils, History, User, LogOut } from 'lucide-react';
 import { getReadableDay, getLogicalDayString } from '../lib/dayLogic';
+import { supabase } from '../lib/supabaseClient';
+import type { User as UserType } from '@supabase/supabase-js';
 
 interface HeaderProps {
   onOpenSettings: () => void;
   onOpenHistory: () => void;
+  onOpenAuth: () => void;
+  user: UserType | null;
   dayStartHour: number;
 }
 
-export const Header = ({ onOpenSettings, onOpenHistory, dayStartHour }: HeaderProps) => {
+export const Header = ({ onOpenSettings, onOpenHistory, onOpenAuth, user, dayStartHour }: HeaderProps) => {
   const todayString = getLogicalDayString(Date.now(), dayStartHour);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
 
   return (
     <header className="flex items-center justify-between py-6">
@@ -43,6 +51,28 @@ export const Header = ({ onOpenSettings, onOpenHistory, dayStartHour }: HeaderPr
         >
           <SettingsIcon className="w-4 h-4" />
         </button>
+        {user ? (
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-mono text-zinc-500 hidden sm:block">{user.email}</span>
+            <button
+              onClick={handleSignOut}
+              className="p-2 text-zinc-400 hover:text-rose-400 border border-zinc-800 hover:border-rose-400 transition-colors rounded-xl"
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={onOpenAuth}
+            className="p-2 text-zinc-400 hover:text-[var(--accent)] border border-zinc-800 hover:border-[var(--accent)] transition-colors rounded-xl"
+            aria-label="Sign in"
+            title="Sign in"
+          >
+            <User className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </header>
   );
