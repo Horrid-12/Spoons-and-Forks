@@ -2,12 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --primary: #5865F2;
+  --onPrimary: #FFFFFF;
+  --primaryContainer: #5865F2;
+  --onPrimaryContainer: #FFFFFF;
+  --secondary: #2f3136;
+  --onSecondary: #dcddde;
+  --secondaryContainer: #2f3136;
+  --onSecondaryContainer: #dcddde;
+  --tertiary: #5865F2;
+  --onTertiary: #FFFFFF;
+  --tertiaryContainer: #5865F2;
+  --onTertiaryContainer: #FFFFFF;
+  --background: #202225;
+  --onBackground: #dcddde;
+  --surface: #2f3136;
+  --onSurface: #dcddde;
+  --surfaceVariant: #2f3136;
+  --onSurfaceVariant: #dcddde;
+  --surfaceTint: #5865F2;
+  --inverseSurface: #dcddde;
+  --inverseOnSurface: #202225;
+  --error: #F2B8B5;
+  --onError: #601410;
+  --errorContainer: #8C1D18;
+  --onErrorContainer: #F9DEDC;
+  --outline: #8E9099;
+  --outlineVariant: #44464E;
+  --scrim: #000000;
+  --surfaceBright: #373940;
+  --surfaceDim: #202225;
+  --surfaceContainer: #2f3136;
+  --surfaceContainerHigh: #272A31;
+  --surfaceContainerHighest: #32353C;
+  --surfaceContainerLow: #1B1B1D;
+  --surfaceContainerLowest: #0C0E14;
+}
+
 @layer base {
   html {
     color-scheme: dark;
   }
   body {
-    @apply bg-zinc-950 text-zinc-300 font-sans antialiased;
+    background-color: var(--background, #202225);
+    color: var(--onBackground, #dcddde);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv11", "ss01";
   }
   ::-webkit-scrollbar {
@@ -23,4 +65,8 @@
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-zinc-700;
   }
+}
+
+.input-accent-bg {
+  background-color: color-mix(in srgb, var(--accent) 20%, var(--card));
 }

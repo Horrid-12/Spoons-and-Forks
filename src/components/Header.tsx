@@ -15,29 +15,31 @@ export const Header = ({ onOpenSettings, onOpenHistory, onOpenAuth, user, daySta
   const todayString = getLogicalDayString(Date.now(), dayStartHour);
 
   const handleSignOut = async () => {
+    if (!window.confirm('Sign out?')) return;
     await supabase.auth.signOut();
   };
 
   return (
     <header className="flex items-center justify-between py-6">
       <div className="flex items-center gap-2">
-        <Utensils className="w-5 h-5 text-[var(--accent)]" />
-        <h1 className="text-2xl font-extrabold tracking-tight text-zinc-100 uppercase font-sans">
-          Spoons and Forks<span className="text-[var(--accent)]">.</span>
+        <Utensils className="w-5 h-5" style={{ color: 'var(--accent, #5865F2)' }} />
+        <h1 className="text-2xl font-extrabold tracking-tight uppercase font-sans" style={{ color: 'var(--onBackground, #dcddde)' }}>
+          Spoons and Forks<span style={{ color: 'var(--accent, #5865F2)' }}>.</span>
         </h1>
       </div>
       <div className="flex items-center gap-4">
         <div className="hidden sm:flex flex-col items-end">
-          <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">
+          <span className="text-[10px] uppercase tracking-widest font-mono" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
             {getReadableDay(todayString)}
           </span>
-          <span className="text-[10px] text-zinc-600 font-mono">
+          <span className="text-[10px] font-mono" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
             CYCLE STARTS {String(dayStartHour).padStart(2, '0')}:00
           </span>
         </div>
         <button
           onClick={onOpenHistory}
-          className="p-2 text-zinc-400 hover:text-[var(--accent)] border border-zinc-800 hover:border-[var(--accent)] transition-colors rounded-xl"
+          className="p-2 transition-colors rounded-xl"
+          style={{ color: 'var(--onSurfaceVariant, #8e9297)', border: '1px solid var(--outlineVariant, #44464E)' }}
           aria-label="Open History"
           title="History"
         >
@@ -45,7 +47,8 @@ export const Header = ({ onOpenSettings, onOpenHistory, onOpenAuth, user, daySta
         </button>
         <button
           onClick={onOpenSettings}
-          className="p-2 text-zinc-400 hover:text-[var(--accent)] border border-zinc-800 hover:border-[var(--accent)] transition-colors rounded-xl"
+          className="p-2 transition-colors rounded-xl"
+          style={{ color: 'var(--onSurfaceVariant, #8e9297)', border: '1px solid var(--outlineVariant, #44464E)' }}
           aria-label="Open Settings"
           title="Settings"
         >
@@ -53,10 +56,11 @@ export const Header = ({ onOpenSettings, onOpenHistory, onOpenAuth, user, daySta
         </button>
         {user ? (
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-mono text-zinc-500 hidden sm:block">{user.email}</span>
+            <span className="text-[10px] font-mono hidden sm:block" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>{user.email}</span>
             <button
               onClick={handleSignOut}
-              className="p-2 text-zinc-400 hover:text-rose-400 border border-zinc-800 hover:border-rose-400 transition-colors rounded-xl"
+              className="p-2 transition-colors rounded-xl"
+              style={{ color: 'var(--onSurfaceVariant, #8e9297)', border: '1px solid var(--outlineVariant, #44464E)' }}
               aria-label="Sign out"
               title="Sign out"
             >
@@ -66,7 +70,8 @@ export const Header = ({ onOpenSettings, onOpenHistory, onOpenAuth, user, daySta
         ) : (
           <button
             onClick={onOpenAuth}
-            className="p-2 text-zinc-400 hover:text-[var(--accent)] border border-zinc-800 hover:border-[var(--accent)] transition-colors rounded-xl"
+            className="p-2 transition-colors rounded-xl"
+            style={{ color: 'var(--onSurfaceVariant, #8e9297)', border: '1px solid var(--outlineVariant, #44464E)' }}
             aria-label="Sign in"
             title="Sign in"
           >

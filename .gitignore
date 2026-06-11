@@ -39,9 +39,13 @@ src-tauri/target/
 .env.local
 .env.*.local
 *.pem
+*.jks
+keystore.properties
 
 # OS
 Thumbs.db
 ehthumbs.db
 desktop.ini
 AGENTS.md
+Architecture.md
+

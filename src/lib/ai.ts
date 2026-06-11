@@ -1,7 +1,11 @@
 import { FoodEntry } from '../types';
 
-const GEMINI_MODEL = 'gemini-3.5-flash';
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_API_URL_BASE = 'https://generativelanguage.googleapis.com/v1/models';
+
+export const GEMINI_MODELS: Record<string, string> = {
+  'gemini-3.5-flash': 'Gemini 3.5 Flash',
+  'gemini-3.1-flash-lite': 'Gemini 3.1 Flash Lite',
+};
 
 interface GeminiResponse {
   edible: boolean;
@@ -13,11 +17,15 @@ interface GeminiResponse {
 
 export const parseFoodWithAI = async (
   text: string,
-  apiKey: string
+  apiKey: string,
+  model: string = 'gemini-3.5-flash',
 ): Promise<Omit<FoodEntry, 'id' | 'timestamp' | 'description'>> => {
   if (!apiKey || apiKey.trim() === '') {
     throw new Error('Gemini API key is missing. Add it in Settings.');
   }
+
+  const modelId = model || 'gemini-3.5-flash';
+  const endpoint = `${GEMINI_API_URL_BASE}/${modelId}:generateContent`;
 
   const prompt = `You are a strict food classifier and macro estimator for a calorie-tracking app.
 
@@ -33,7 +41,7 @@ Respond with ONLY a raw JSON object in this exact shape, no markdown, no prose, 
 
 All five fields are required. Values are: calories in kcal, protein/carbs/fat in grams.`;
 
-  const response = await fetch(`${GEMINI_API_URL}?key=${encodeURIComponent(apiKey)}`, {
+  const response = await fetch(`${endpoint}?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

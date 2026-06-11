@@ -8,11 +8,13 @@ export const DEFAULT_TARGETS: MacroTargets = {
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-  accentColor: '#34d399',
-  bgColor: '#09090b',
-  cardColor: '#18181b',
-  fontColor: '#d4d4d8',
+  accentColor: '#5865F2',
+  bgColor: '#202225',
+  cardColor: '#2f3136',
+  fontColor: '#dcddde',
   dayStartHour: 5,
   geminiApiKey: '',
+  geminiModel: 'gemini-3.5-flash',
   targets: DEFAULT_TARGETS,
+  useSystemTheme: false,
 };

@@ -1,144 +1,229 @@
 <#
 .SYNOPSIS
-  Builds the Tauri desktop installer and publishes a new GitHub release.
-
-.DESCRIPTION
-  1. Updates the version across package.json, src-tauri/Cargo.toml, and src-tauri/tauri.conf.json.
-  2. Initializes a git repo (if needed), commits, and pushes to GitHub.
-  3. Builds the Tauri installer (MSI/NSIS on Windows, .dmg/.AppImage on Linux/macOS).
-  4. Creates (or updates) a GitHub release tagged with the version and attaches the installers.
+  Release CLI for Spoons and Forks — builds Desktop + Android apps and publishes.
 
 .PARAMETER Version
-  The semantic version to release (e.g. "0.2.0"). REQUIRED.
+  Semantic version to release (e.g. "0.5.0"). Required unless interactive mode.
 
-.PARAMETER Message
-  Optional release notes / commit message. Defaults to "Release v$Version".
+.PARAMETER Tauri
+  Build the Tauri desktop installer (.msi/.exe on Windows).
 
-.PARAMETER Remote
-  Git remote name. Defaults to "origin".
+.PARAMETER Android
+  Build the Android APK/AAB.
 
-.PARAMETER Branch
-  Branch to push to. Defaults to "main".
+.PARAMETER GitCommit
+  Create a git commit for this release.
 
-.PARAMETER SkipPush
-  Skip the git push step (useful for testing the build locally).
+.PARAMETER GitPush
+  Push the commit to GitHub.
 
-.PARAMETER SkipBuild
-  Skip the Tauri build step (useful when only committing version bumps).
+.PARAMETER SkipVersionSync
+  Skip bumping version files. Useful if you already bumped them manually.
+
+.PARAMETER DryRun
+  Print what would be done without actually doing it.
 
 .PARAMETER Draft
   Create the GitHub release as a draft (not publicly visible).
 
-.EXAMPLE
-  .\release.ps1 -Version "0.2.0"
-.EXAMPLE
-  .\release.ps1 -Version "0.3.0-beta.1" -Message "Beta release" -Draft
+.PARAMETER CommitMessage
+  Override the default commit message.
 #>
 
-[CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)]
-    [string]$Version,
-
-    [string]$Message,
-
-    [string]$Remote = "origin",
-
-    [string]$Branch = "main",
-
-    [switch]$SkipPush,
-
-    [switch]$SkipBuild,
-
-    [switch]$Draft
+    [string]$Version = "",
+    [switch]$Tauri,
+    [switch]$Android,
+    [switch]$GitCommit,
+    [switch]$GitPush,
+    [switch]$SkipVersionSync,
+    [switch]$DryRun,
+    [switch]$Draft,
+    [string]$CommitMessage = ""
 )
 
 $ErrorActionPreference = "Stop"
 
-# Resolve the project root: start at the script's own directory and walk up
-# until we find package.json. This makes the script runnable from anywhere.
-$ProjectRoot = $PSScriptRoot
+# ---- Project layout ----------------------------------------------------------
+
+$ScriptDir = $PSScriptRoot
+$ProjectRoot = $ScriptDir
 while ($ProjectRoot -and -not (Test-Path (Join-Path $ProjectRoot "package.json"))) {
     $parent = Split-Path -Parent $ProjectRoot
     if ($parent -eq $ProjectRoot) { $ProjectRoot = $null; break }
     $ProjectRoot = $parent
 }
 if (-not $ProjectRoot) {
-    throw "Could not locate project root (no package.json found in '$PSScriptRoot' or any parent directory)."
+    throw "Could not locate project root (no package.json found in '$ScriptDir' or any parent directory)."
 }
 Set-Location $ProjectRoot
 
-# ---- Helpers ----------------------------------------------------------------
+# ---- Helpers -----------------------------------------------------------------
 
-function Write-Section($title) {
+function Write-Section {
+    param([string]$Message)
     Write-Host ""
-    Write-Host "============================================================" -ForegroundColor Cyan
-    Write-Host "  $title" -ForegroundColor Cyan
-    Write-Host "============================================================" -ForegroundColor Cyan
+    Write-Host "== $Message ==" -ForegroundColor Cyan
 }
 
-function Update-VersionInFile($path, $pattern, $replacement) {
-    if (-not (Test-Path $path)) {
-        throw "File not found: $path"
-    }
-    $content = Get-Content $path -Raw
-    if ($content -notmatch $pattern) {
-        throw "Pattern not found in $path : $pattern"
-    }
-    $newContent = $content -replace $pattern, $replacement
-    Set-Content -Path $path -Value $newContent -NoNewline
-    Write-Host "  updated  $path" -ForegroundColor Green
+function Test-SemVer {
+    param([string]$InputVersion)
+    return $InputVersion -match '^\d+\.\d+\.\d+(-[A-Za-z0-9.-]+)?$'
 }
 
-function Assert-Command($cmd) {
-    if (-not (Get-Command $cmd -ErrorAction SilentlyContinue)) {
-        throw "Required command not found: $cmd. Please install it and retry."
+function Invoke-Step {
+    param([string]$Label, [scriptblock]$Action)
+    Write-Host ""
+    Write-Host "-> $Label" -ForegroundColor Yellow
+    if ($DryRun) {
+        Write-Host "   Dry run: skipped" -ForegroundColor DarkYellow
+        return
+    }
+    & $Action
+}
+
+function Invoke-External {
+    param(
+        [string]$FilePath,
+        [string[]]$ArgumentList,
+        [string]$WorkingDirectory = $ProjectRoot
+    )
+    if ($DryRun) {
+        $joined = ($ArgumentList | ForEach-Object {
+            if ($_ -match '\s') { '"' + $_ + '"' } else { $_ }
+        }) -join ' '
+        Write-Host "   Dry run command: $FilePath $joined" -ForegroundColor DarkYellow
+        return
+    }
+    Push-Location $WorkingDirectory
+    try {
+        & $FilePath @ArgumentList
+        if ($LASTEXITCODE -ne 0) {
+            throw "Command failed with exit code ${LASTEXITCODE}: $FilePath $($ArgumentList -join ' ')"
+        }
+    }
+    finally {
+        Pop-Location
     }
 }
 
-# ---- Preflight --------------------------------------------------------------
+function Update-JsonVersion {
+    param([string]$Path, [string]$InputVersion)
+    $json = Get-Content $Path -Raw | ConvertFrom-Json
+    $json.version = $InputVersion
+    $json | ConvertTo-Json -Depth 100 | Set-Content $Path
+    Write-Host "   updated  $Path" -ForegroundColor Green
+}
 
-Write-Section "Preflight"
+function Update-RegexReplace {
+    param([string]$Path, [string]$Pattern, [string]$Replacement)
+    $content = Get-Content $Path -Raw
+    if (-not [regex]::IsMatch($content, $Pattern, [System.Text.RegularExpressions.RegexOptions]::Multiline)) {
+        throw "Failed to find pattern $Pattern in $Path"
+    }
+    $updated = [regex]::Replace($content, $Pattern, $Replacement, [System.Text.RegularExpressions.RegexOptions]::Multiline)
+    Set-Content $Path $updated
+    Write-Host "   updated  $Path" -ForegroundColor Green
+}
+
+function Sync-VersionFiles {
+    param([string]$InputVersion)
+    Update-JsonVersion (Join-Path $ProjectRoot "package.json") $InputVersion
+    Update-JsonVersion (Join-Path $ProjectRoot "src-tauri/tauri.conf.json") $InputVersion
+    Update-RegexReplace (Join-Path $ProjectRoot "src-tauri/Cargo.toml") '(?m)^version = ".*"$' ('version = "{0}"' -f $InputVersion)
+}
+
+function Assert-Command {
+    param([string]$Cmd)
+    if (-not (Get-Command $Cmd -ErrorAction SilentlyContinue)) {
+        throw "Required command not found: $Cmd. Please install it and retry."
+    }
+}
+
+function Read-Choice {
+    param([string]$Prompt, [bool]$DefaultValue = $true)
+    $suffix = if ($DefaultValue) { "[Y/n]" } else { "[y/N]" }
+    $answer = Read-Host "$Prompt $suffix"
+    if ([string]::IsNullOrWhiteSpace($answer)) { return $DefaultValue }
+    return $answer.Trim().ToLowerInvariant() -in @("y", "yes")
+}
+
+# ---- Interactive mode --------------------------------------------------------
+
+$explicitActions = $Tauri -or $Android -or $GitCommit -or $GitPush -or $SkipVersionSync
+if (-not $explicitActions -and -not $Version) {
+    Write-Section "Spoons and Forks Release CLI"
+
+    do {
+        $Version = Read-Host "Version (semver, e.g. 0.5.0)"
+    } while (-not (Test-SemVer $Version))
+
+    Write-Host ""
+    Write-Host "Version: $Version" -ForegroundColor White
+
+    $SkipVersionSync = -not (Read-Choice "Sync version files?" $true)
+
+    $Tauri = Read-Choice "Build Tauri desktop installer?" $true
+
+    $Android = Read-Choice "Build Android APK/AAB?" $true
+
+    $GitCommit = Read-Choice "Create a git commit?" $true
+    if ($GitCommit) {
+        $defaultMsg = "release: v$Version"
+        $entered = Read-Host "Commit message [$defaultMsg]"
+        $CommitMessage = if ([string]::IsNullOrWhiteSpace($entered)) { $defaultMsg } else { $entered }
+        $GitPush = Read-Choice "Push to GitHub?" $true
+    }
+}
+
+# ---- Validation --------------------------------------------------------------
+
+if (-not (Test-SemVer $Version)) {
+    throw "Invalid version '$Version'. Use semver like 0.5.0 or 0.5.0-rc.1."
+}
+if (-not $CommitMessage) { $CommitMessage = "release: v$Version" }
 
 Assert-Command "node"
 Assert-Command "npm"
 Assert-Command "git"
 Assert-Command "cargo"
+Assert-Command "rustup"
 
-if ($Version -notmatch '^\d+\.\d+\.\d+(-[A-Za-z0-9.-]+)?$') {
-    throw "Version '$Version' is not a valid semver (e.g. 1.2.3 or 1.2.3-rc.1)"
+# ---- Summary ----------------------------------------------------------------
+
+Write-Section "Release Summary"
+Write-Host "  Version       : $Version"  -ForegroundColor White
+Write-Host "  Commit msg    : $CommitMessage" -ForegroundColor White
+Write-Host "  Tauri desktop : $Tauri"    -ForegroundColor White
+Write-Host "  Android       : $Android"  -ForegroundColor White
+Write-Host "  Git commit    : $GitCommit" -ForegroundColor White
+Write-Host "  Git push      : $GitPush"  -ForegroundColor White
+Write-Host "  Dry run       : $DryRun"   -ForegroundColor White
+
+# ---- Step 1: Sync version files ---------------------------------------------
+
+if (-not $SkipVersionSync) {
+    Invoke-Step "Syncing version files to $Version" {
+        Sync-VersionFiles $Version
+    }
 }
 
-if (-not $Message) {
-    $Message = "Release v$Version"
+# ---- Step 2: Ensure bundle enabled + icon list ------------------------------
+
+$tauriConfPath = Join-Path $ProjectRoot "src-tauri/tauri.conf.json"
+
+Invoke-Step "Verifying Tauri bundle config" {
+    $config = Get-Content $tauriConfPath -Raw | ConvertFrom-Json
+    if (-not $config.bundle.active) {
+        Update-RegexReplace $tauriConfPath '"active"\s*:\s*false' '"active": true'
+    }
 }
 
-Write-Host "  version   $Version" -ForegroundColor White
-Write-Host "  message   $Message" -ForegroundColor White
-Write-Host "  root      $ProjectRoot" -ForegroundColor White
-Write-Host "  remote    $Remote" -ForegroundColor White
-Write-Host "  branch    $Branch" -ForegroundColor White
+# ---- Step 3: Ensure icon list has the full set -----------------------------
 
-# ---- Step 1: Bump version across manifests ---------------------------------
-
-Write-Section "1/5  Bumping version to $Version"
-
-Update-VersionInFile "package.json"            '"version"\s*:\s*"[^"]+"' "`"version`": `"$Version`""
-Update-VersionInFile "src-tauri/Cargo.toml"     '(?m)^version\s*=\s*"[^"]+"' "version = `"$Version`""
-Update-VersionInFile "src-tauri/tauri.conf.json" '"version"\s*:\s*"[^"]+"' "`"version`": `"$Version`""
-
-# ---- Step 2: Ensure bundle is enabled for installer build ------------------
-
-Write-Section "2/5  Verifying Tauri bundle config"
-
-$tauriConf = Get-Content "src-tauri/tauri.conf.json" -Raw | ConvertFrom-Json
-if (-not $tauriConf.bundle.active) {
-    Write-Host "  enabling bundle in tauri.conf.json (was disabled for dev)" -ForegroundColor Yellow
-    Update-VersionInFile "src-tauri/tauri.conf.json" '"active"\s*:\s*false' '"active": true'
-}
-
-# Ensure icon list points at the full generated set (regardless of bundle state)
-$iconReplacement = @'
+if ($Tauri -or $Android) {
+    Invoke-Step "Updating icon list in tauri.conf.json" {
+        $iconReplacement = @'
 "icon": [
     "icons/32x32.png",
     "icons/128x128.png",
@@ -147,63 +232,67 @@ $iconReplacement = @'
     "icons/icon.ico"
   ]
 '@
-$confPath = "src-tauri/tauri.conf.json"
-$confContent = Get-Content $confPath -Raw
-if ($confContent -match '"icon"\s*:\s*\[[^\]]*\]') {
-    $confContent = $confContent -replace '"icon"\s*:\s*\[[^\]]*\]', $iconReplacement
-    Set-Content -Path $confPath -Value $confContent -NoNewline
-    Write-Host "  updated  $confPath (icon list)" -ForegroundColor Green
-}
-
-# ---- Step 2b: Regenerate ALL icons from the canonical source.png -----------
-# This guarantees icon.ico, .icns, 32x32.png, 128x128.png, 128x128@2x.png and
-# every platform variant are all derived from src-tauri/icons/source.png so
-# they always match the brand. Run only when we're actually building.
-$sourceIcon = "src-tauri/icons/source.png"
-if (-not $SkipBuild) {
-    Write-Section "2b   Regenerating icons from source.png"
-    if (Test-Path $sourceIcon) {
-        Write-Host "  source  $sourceIcon" -ForegroundColor White
-        npx tauri icon $sourceIcon
-        if ($LASTEXITCODE -ne 0) {
-            throw "tauri icon generation failed (exit $LASTEXITCODE)"
+        $content = Get-Content $tauriConfPath -Raw
+        if ($content -match '"icon"\s*:\s*\[[^\]]*\]') {
+            $content = $content -replace '"icon"\s*:\s*\[[^\]]*\]', $iconReplacement
+            Set-Content $tauriConfPath $content -NoNewline
         }
-        Write-Host "  icons regenerated" -ForegroundColor Green
-    } else {
-        Write-Host "  no $sourceIcon found -- skipping (icons unchanged)" -ForegroundColor DarkGray
     }
-} else {
-    Write-Host "  skipping icon regen (--SkipBuild)" -ForegroundColor DarkGray
 }
 
-# ---- Step 3: Install + Build ------------------------------------------------
+# ---- Step 4: Regenerate icons -----------------------------------------------
 
-if (-not $SkipBuild) {
-    Write-Section "3/5  Installing dependencies"
-    npm install
-
-    Write-Section "4/5  Building Tauri installer"
-    npm run tauri build
-
-    Write-Section "4b   Building Android APK/AAB"
-    npx tauri android build
-} else {
-    Write-Section "3/5  Skipping install (--SkipBuild)"
-    Write-Section "4/5  Skipping Tauri build (--SkipBuild)"
-    Write-Section "4b   Skipping Android build (--SkipBuild)"
+$sourceIcon = Join-Path $ProjectRoot "Icon.png"
+if (($Tauri -or $Android) -and (Test-Path $sourceIcon)) {
+    Invoke-Step "Regenerating icons from Icon.png" {
+        Invoke-External "npx.cmd" @("tauri", "icon", $sourceIcon)
+    }
 }
 
-# Locate the built bundles
-# Desktop: src-tauri/target/release/bundle
-# Android: src-tauri/gen/android/app/build/outputs/
-$bundleRoot = Join-Path $ProjectRoot "src-tauri/target/release/bundle"
-$androidRoot = Join-Path $ProjectRoot "src-tauri/gen/android/app/build/outputs"
+# ---- Step 5: Tauri desktop build --------------------------------------------
+
+if ($Tauri) {
+    Invoke-Step "Building Tauri desktop app" {
+        Invoke-External "npm.cmd" @("run", "tauri", "build")
+    }
+}
+
+# ---- Step 5b: Verify Android keystore --------------------------------------
+
+if ($Android) {
+    $keystorePath = Join-Path $ProjectRoot "src-tauri/release-key.jks"
+    $keystoreProps = Join-Path $ProjectRoot "src-tauri/gen/android/app/keystore.properties"
+    if (-not (Test-Path $keystorePath)) {
+        throw "Android keystore not found at $keystorePath. Generate it with:`n  keytool -genkey -v -keystore `"$keystorePath`" -keyalg RSA -keysize 2048 -validity 10000 -alias spoons-and-forks -storepass spoonsandforks -keypass spoonsandforks -dname `"CN=Spoons and Forks, OU=Dev, O=Spoons, L=NA, ST=NA, C=US`""
+    }
+    if (-not (Test-Path $keystoreProps)) {
+        throw "keystore.properties not found at $keystoreProps. Create it with:`n  storeFile=../../../release-key.jks`n  storePassword=spoonsandforks`n  keyAlias=spoons-and-forks`n  keyPassword=spoonsandforks"
+    }
+    Write-Host "   keystore OK  $keystorePath" -ForegroundColor Green
+}
+
+# ---- Step 6: Android build --------------------------------------------------
+
+if ($Android) {
+    Invoke-Step "Building Android APK/AAB" {
+        Invoke-External "npx.cmd" @("tauri", "android", "build")
+    }
+}
+
+# ---- Step 7: Collect artifacts ----------------------------------------------
+
 $artifacts = @()
-if (Test-Path $bundleRoot) {
-    $artifacts += Get-ChildItem -Path $bundleRoot -Recurse -File -Include "*.msi","*.exe","*.nsis","*.dmg","*.AppImage","*.deb","*.app" -ErrorAction SilentlyContinue
+if ($Tauri) {
+    $desktopDir = Join-Path $ProjectRoot "src-tauri/target/release/bundle"
+    if (Test-Path $desktopDir) {
+        $artifacts += Get-ChildItem $desktopDir -Recurse -File -Include "*.msi","*.exe","*.nsis","*.dmg","*.AppImage","*.deb","*.app" -ErrorAction SilentlyContinue
+    }
 }
-if (Test-Path $androidRoot) {
-    $artifacts += Get-ChildItem -Path $androidRoot -Recurse -File -Include "*.apk","*.aab" -ErrorAction SilentlyContinue
+if ($Android) {
+    $androidDir = Join-Path $ProjectRoot "src-tauri/gen/android/app/build/outputs"
+    if (Test-Path $androidDir) {
+        $artifacts += Get-ChildItem $androidDir -Recurse -File -Include "*.apk","*.aab" -ErrorAction SilentlyContinue
+    }
 }
 
 if ($artifacts.Count -gt 0) {
@@ -212,59 +301,49 @@ if ($artifacts.Count -gt 0) {
         $rel = $a.FullName.Substring($ProjectRoot.Length + 1)
         Write-Host "  $rel  ($([math]::Round($a.Length / 1MB, 2)) MB)" -ForegroundColor White
     }
-} else {
-    Write-Host "  (no installer artifacts found under $bundleRoot)" -ForegroundColor DarkGray
+} elseif (($Tauri -or $Android) -and (-not $DryRun)) {
+    Write-Host "  (no artifacts found)" -ForegroundColor DarkGray
 }
 
-# ---- Step 5: Git commit / push / GitHub release -----------------------------
+# ---- Step 8: Git commit -----------------------------------------------------
 
-Write-Section "5/5  Committing and publishing"
-
-if (-not (Test-Path ".git")) {
-    Write-Host "  initializing git repository" -ForegroundColor Yellow
-    git init *> $null
-    git checkout -b $Branch *> $null
-}
-
-# Make sure the remote exists; if not, add it (user must provide via env or edit script)
-$remotes = git remote
-if ($remotes -notcontains $Remote) {
-    $repoUrl = $env:GITHUB_REPO_URL
-    if (-not $repoUrl) {
-        throw "Git remote '$Remote' is not configured. Set `$env:GITHUB_REPO_URL = 'https://github.com/USER/REPO.git' and retry."
+if ($GitCommit -and (-not $DryRun)) {
+    Invoke-Step "Creating git commit" {
+        $staged = @(
+            "package.json",
+            "src-tauri/tauri.conf.json",
+            "src-tauri/Cargo.toml",
+            "Icon.png"
+        )
+        Invoke-External "git.exe" @("add") + $staged
+        Invoke-External "git.exe" @("commit", "-m", $CommitMessage)
     }
-    Write-Host "  adding remote $Remote -> $repoUrl" -ForegroundColor Yellow
-    git remote add $Remote $repoUrl
 }
 
-git add -A
+# ---- Step 9: Git push -------------------------------------------------------
 
-# Skip the commit if there are no staged changes
-$diff = git diff --cached --quiet
-if ($LASTEXITCODE -ne 0) {
-    git commit -m $Message
-} else {
-    Write-Host "  no staged changes to commit" -ForegroundColor DarkGray
+if ($GitPush) {
+    Invoke-Step "Pushing to origin" {
+        Invoke-External "git.exe" @("push")
+    }
 }
 
-if (-not $SkipPush) {
-    Write-Host "  pushing to $Remote/$Branch" -ForegroundColor Yellow
-    git push $Remote $Branch
-} else {
-    Write-Host "  skipped push (--SkipPush)" -ForegroundColor DarkGray
-}
+# ---- Step 10: GitHub release ------------------------------------------------
 
-# Optionally create a GitHub release with the installer artifacts
 $tag = "v$Version"
-if ($artifacts.Count -gt 0 -and (Get-Command gh -ErrorAction SilentlyContinue)) {
-    Write-Section "Creating GitHub release $tag"
-    $ghArgs = @("release", "create", $tag) + $artifacts.FullName + @("--title", $Message, "--notes", $Message)
-    if ($Draft) { $ghArgs += "--draft" }
-    & gh @ghArgs
-} elseif ($artifacts.Count -gt 0) {
-    Write-Host "  gh CLI not found - skipping GitHub release creation." -ForegroundColor DarkGray
-    Write-Host "  Manually upload artifacts to: https://github.com/$(git config --get remote.$Remote.url | Select-String 'github.com[:/](.+?)(?:\.git)?$' | ForEach-Object { $_.Matches[0].Groups[1].Value })/releases/new?tag=$tag" -ForegroundColor DarkGray
+if (($Tauri -or $Android) -and $artifacts.Count -gt 0 -and (-not $DryRun)) {
+    $hasGh = Get-Command "gh" -ErrorAction SilentlyContinue
+    if ($hasGh) {
+        Invoke-Step "Creating GitHub release $tag" {
+            $ghArgs = @("release", "create", $tag) + $artifacts.FullName + @("--title", $CommitMessage, "--notes", $CommitMessage)
+            if ($Draft) { $ghArgs += "--draft" }
+            Invoke-External "gh.exe" $ghArgs
+        }
+    } else {
+        Write-Host "  gh CLI not found - skipping GitHub release creation." -ForegroundColor DarkGray
+        Write-Host "  Upload artifacts at: https://github.com/YOUR_USER/spoons-and-forks/releases/new?tag=$tag" -ForegroundColor DarkGray
+    }
 }
 
 Write-Section "Done"
-Write-Host "  Released v$Version" -ForegroundColor Green
+Write-Host "  v$Version" -ForegroundColor Green

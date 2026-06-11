@@ -61,68 +61,71 @@ export const HistoryModal = ({ isOpen, onClose, entries, dayStartHour, onDelete 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm">
-      <div className="w-full max-w-2xl bg-[var(--card)] border border-zinc-800 shadow-2xl max-h-[90vh] overflow-hidden flex flex-col rounded-3xl">
-        <div className="flex items-center justify-between p-4 border-b border-zinc-800 shrink-0">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-300">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--background, #202225) 80%, transparent)' }}>
+      <div className="w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col rounded-3xl" style={{ backgroundColor: 'var(--card, #2f3136)', border: '1px solid var(--outlineVariant, #44464E)' }}>
+        <div className="flex items-center justify-between p-4 shrink-0" style={{ borderBottom: '1px solid var(--outlineVariant, #44464E)' }}>
+          <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: 'var(--onSurface, #dcddde)' }}>
             Food History
           </h2>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300">
+          <button onClick={onClose} style={{ color: 'var(--onSurfaceVariant, #8e9297)' }} className="hover:opacity-80">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="p-4 overflow-y-auto flex-1 space-y-2">
           {grouped.length === 0 ? (
-            <div className="p-10 text-center text-zinc-600 font-mono text-xs uppercase tracking-widest border border-dashed border-zinc-800 rounded-2xl">
-              // No history yet
+            <div className="p-10 text-center font-mono text-xs uppercase tracking-widest rounded-2xl" style={{ color: 'var(--onSurfaceVariant, #8e9297)', border: '1px dashed var(--outlineVariant, #44464E)' }}>
+              No history yet
             </div>
           ) : (
             grouped.map(({ day, items, totals }) => {
               const isOpen = expanded.has(day);
               return (
-                <div key={day} className="border border-zinc-800 rounded-2xl overflow-hidden bg-zinc-950/20">
+                <div key={day} className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--outlineVariant, #44464E)' }}>
                   <button
                     onClick={() => toggle(day)}
-                    className="w-full grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-zinc-900/30 transition-colors text-left"
+                    className="w-full grid grid-cols-12 gap-2 px-4 py-3 items-center hover:opacity-90 transition-colors text-left"
+                    style={{ backgroundColor: 'var(--surfaceContainerLow, #1B1B1D)' }}
                   >
-                    <div className="col-span-1 text-zinc-500">
+                    <div className="col-span-1" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
                       {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                     </div>
-                    <div className="col-span-5 sm:col-span-4 text-zinc-100 font-semibold text-sm">
+                    <div className="col-span-5 sm:col-span-4 font-semibold text-sm" style={{ color: 'var(--onSurface, #dcddde)' }}>
                       {getReadableDay(day)}
                     </div>
-                    <div className="col-span-2 text-center text-xs text-zinc-500 font-mono">
+                    <div className="col-span-2 text-center text-xs font-mono" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
                       {items.length} {items.length === 1 ? 'item' : 'items'}
                     </div>
-                    <div className="col-span-2 text-right font-mono text-[var(--accent)] font-bold text-sm">
+                    <div className="col-span-2 text-right font-mono font-bold text-sm" style={{ color: 'var(--accent, #5865F2)' }}>
                       {totals.calories}
                     </div>
-                    <div className="col-span-2 sm:col-span-3 text-right font-mono text-xs text-zinc-500 hidden sm:block">
+                    <div className="col-span-2 sm:col-span-3 text-right font-mono text-xs hidden sm:block" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
                       {totals.protein}p / {totals.carbs}c / {totals.fat}f
                     </div>
                   </button>
 
                   {isOpen && (
-                    <div className="border-t border-zinc-800 bg-zinc-950/30 px-3 py-2 space-y-1.5">
+                    <div className="px-3 py-2 space-y-1.5" style={{ borderTop: '1px solid var(--outlineVariant, #44464E)', backgroundColor: 'var(--surfaceContainerLowest, #0C0E14)' }}>
                       {items.map(entry => (
                         <div
                           key={entry.id}
-                          className="grid grid-cols-12 gap-2 px-3 py-2 items-center text-xs bg-zinc-950/40 border border-zinc-800 rounded-xl"
+                          className="grid grid-cols-12 gap-2 px-3 py-2 items-center text-xs rounded-xl"
+                          style={{ backgroundColor: 'var(--surfaceContainerLow, #1B1B1D)', border: '1px solid var(--outlineVariant, #44464E)' }}
                         >
-                          <div className="col-span-2 sm:col-span-2 font-mono text-zinc-500">
+                          <div className="col-span-2 sm:col-span-2 font-mono" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
                             {formatTime(entry.timestamp)}
                           </div>
-                          <div className="col-span-7 sm:col-span-6 text-zinc-300 truncate" title={entry.description}>
+                          <div className="col-span-7 sm:col-span-6 truncate" style={{ color: 'var(--onSurface, #dcddde)' }} title={entry.description}>
                             {entry.description}
                           </div>
-                          <div className="col-span-2 text-right font-mono text-[var(--accent)] font-bold">
+                          <div className="col-span-2 text-right font-mono font-bold" style={{ color: 'var(--accent, #5865F2)' }}>
                             {entry.calories}
                           </div>
                           <div className="col-span-1 flex justify-end">
                             <button
                               onClick={() => onDelete(entry.id)}
-                              className="text-zinc-600 hover:text-rose-400 p-1 rounded-full hover:bg-zinc-900/50 transition-colors"
+                              className="hover:opacity-80 p-1 rounded-full transition-colors"
+                              style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}
                               aria-label="Delete entry"
                             >
                               <X className="w-3 h-3" />

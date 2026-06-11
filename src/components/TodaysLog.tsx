@@ -33,9 +33,9 @@ export const TodaysLog = ({ entries, onDelete, onUpdate }: TodaysLogProps) => {
   };
 
   return (
-    <div className="p-4 bg-[var(--card)] border border-zinc-800 rounded-3xl shadow-lg space-y-3">
+    <div className="p-4 rounded-3xl shadow-lg space-y-3" style={{ backgroundColor: 'var(--card, #2f3136)', border: '1px solid var(--outlineVariant, #44464E)' }}>
       {/* Table Header */}
-      <div className="grid grid-cols-12 gap-2 px-3 pb-1.5 text-[10px] uppercase tracking-widest text-zinc-500 font-mono font-bold">
+      <div className="grid grid-cols-12 gap-2 px-3 pb-1.5 text-[10px] uppercase tracking-widest font-mono font-bold" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
         <div className="col-span-3 sm:col-span-2">Time</div>
         <div className="col-span-5 sm:col-span-6">Description</div>
         <div className="col-span-2 text-right">Cals</div>
@@ -46,22 +46,23 @@ export const TodaysLog = ({ entries, onDelete, onUpdate }: TodaysLogProps) => {
       {/* Entries List */}
       <div className="space-y-1.5">
         {entries.length === 0 ? (
-          <div className="p-8 text-center text-zinc-600 font-mono text-xs uppercase tracking-widest border border-dashed border-zinc-800 rounded-2xl">
-            // No entries logged for this cycle
+          <div className="p-8 text-center font-mono text-xs uppercase tracking-widest rounded-2xl" style={{ color: 'var(--onSurfaceVariant, #8e9297)', border: '1px dashed var(--outlineVariant, #44464E)' }}>
+            No entries logged for this cycle
           </div>
         ) : (
           entries.map((entry) => (
             <div 
               key={entry.id} 
-              className="grid grid-cols-12 gap-2 px-3 py-2.5 items-center text-sm bg-zinc-950/20 border border-zinc-800 hover:border-[var(--accent)]/40 transition-all rounded-xl group shadow-sm"
+              className="grid grid-cols-12 gap-2 px-3 py-2.5 items-center text-sm rounded-xl group shadow-sm transition-all"
+              style={{ backgroundColor: 'var(--surfaceContainerLowest, #0C0E14)', border: '1px solid var(--outlineVariant, #44464E)' }}
             >
-              <div className="col-span-3 sm:col-span-2 font-mono text-xs text-zinc-500">
+              <div className="col-span-3 sm:col-span-2 font-mono text-xs" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
                 {formatTime(entry.timestamp)}
               </div>
-              <div className="col-span-5 sm:col-span-6 text-zinc-100 truncate font-semibold" title={entry.description}>
+              <div className="col-span-5 sm:col-span-6 truncate font-semibold" style={{ color: 'var(--onSurface, #dcddde)' }} title={entry.description}>
                 {entry.description}
               </div>
-              <div className="col-span-2 text-right font-mono text-[var(--accent)] font-bold">
+              <div className="col-span-2 text-right font-mono font-bold" style={{ color: 'var(--accent, #5865F2)' }}>
                 {editingId === entry.id ? (
                   <div className="flex items-center justify-end gap-1">
                     <input
@@ -73,18 +74,21 @@ export const TodaysLog = ({ entries, onDelete, onUpdate }: TodaysLogProps) => {
                         if (e.key === 'Escape') cancelEdit();
                       }}
                       autoFocus
-                      className="w-16 bg-zinc-950 border border-[var(--accent)] text-zinc-100 px-1.5 py-0.5 text-xs font-mono text-right focus:outline-none rounded-md"
+                      className="w-16 px-1.5 py-0.5 text-xs font-mono text-right focus:outline-none rounded-md"
+                      style={{ backgroundColor: 'var(--surfaceContainerLowest, #0C0E14)', border: '1px solid var(--accent, #5865F2)', color: 'var(--onSurface, #dcddde)' }}
                     />
                     <button
                       onClick={() => commitEdit(entry.id)}
-                      className="text-emerald-400 hover:text-emerald-300 p-1.5"
+                      className="hover:opacity-80 p-1.5"
+                      style={{ color: '#10B981' }}
                       aria-label="Save calories"
                     >
                       <Check className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={cancelEdit}
-                      className="text-zinc-500 hover:text-zinc-300 p-1.5"
+                      className="hover:opacity-80 p-1.5"
+                      style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}
                       aria-label="Cancel"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -93,7 +97,7 @@ export const TodaysLog = ({ entries, onDelete, onUpdate }: TodaysLogProps) => {
                 ) : (
                   <button
                     onClick={() => startEdit(entry)}
-                    className="inline-flex items-center gap-1 hover:text-[var(--accent)] opacity-80 group-hover:opacity-100 transition-opacity"
+                    className="inline-flex items-center gap-1 hover:opacity-100 opacity-80 group-hover:opacity-100 transition-opacity"
                     aria-label="Edit calories"
                     title="Tap to edit calories"
                   >
@@ -102,13 +106,14 @@ export const TodaysLog = ({ entries, onDelete, onUpdate }: TodaysLogProps) => {
                   </button>
                 )}
               </div>
-              <div className="col-span-2 text-right font-mono text-xs text-zinc-400 hidden sm:block">
-                {entry.protein}<span className="text-zinc-600">p</span> / {entry.carbs}<span className="text-zinc-600">c</span> / {entry.fat}<span className="text-zinc-600">f</span>
+              <div className="col-span-2 text-right font-mono text-xs hidden sm:block" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
+                {entry.protein}<span style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>p</span> / {entry.carbs}<span style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>c</span> / {entry.fat}<span style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>f</span>
               </div>
               <div className="col-span-2 flex justify-end">
                 <button
                   onClick={() => onDelete(entry.id)}
-                  className="text-zinc-600 hover:text-rose-400 p-2 rounded-full hover:bg-zinc-900/50 transition-colors"
+                  className="hover:opacity-80 p-2 rounded-full transition-colors"
+                  style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}
                   aria-label="Delete entry"
                 >
                   <Trash2 className="w-4 h-4" />

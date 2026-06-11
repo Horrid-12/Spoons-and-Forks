@@ -5,6 +5,13 @@ import { supabase } from './supabaseClient';
 const DB_URL = 'sqlite:spoons-and-forks.db';
 
 let _db: Database | null = null;
+let _dbLock: Promise<void> = Promise.resolve();
+
+function withDbLock<T>(fn: () => T | Promise<T>): Promise<T> {
+  const run = _dbLock.then(fn, fn);
+  _dbLock = run.then(() => {}, () => {});
+  return run;
+}
 
 export async function getDb(): Promise<Database> {
   if (_db) return _db;
@@ -36,37 +43,40 @@ async function migrate(db: Database): Promise<void> {
 }
 
 const SETTINGS_DEFAULTS: Settings = {
-  accentColor: '#34d399',
-  bgColor: '#09090b',
-  cardColor: '#18181b',
-  fontColor: '#d4d4d8',
+  accentColor: '#5865F2',
+  bgColor: '#202225',
+  cardColor: '#2f3136',
+  fontColor: '#dcddde',
   dayStartHour: 5,
   geminiApiKey: '',
+  geminiModel: 'gemini-3.5-flash',
   targets: { calories: 2500, protein: 150, carbs: 300, fat: 80 },
+  useSystemTheme: false,
 };
 
 export async function loadSettings(): Promise<Settings> {
-  const db = await getDb();
-  const rows = await db.select<{ key: string; value: string }[]>(
-    `SELECT key, value FROM settings`
-  );
-  if (rows.length === 0) {
-    await saveSettings(SETTINGS_DEFAULTS);
-    return SETTINGS_DEFAULTS;
-  }
-  const obj: Record<string, unknown> = {};
-  for (const { key, value } of rows) {
-    try { obj[key] = JSON.parse(value); } catch {}
-  }
-  return {
-    ...SETTINGS_DEFAULTS,
-    ...obj,
-    targets: { ...SETTINGS_DEFAULTS.targets, ...(obj.targets as Partial<MacroTargets> | undefined) },
-  } as Settings;
+  return withDbLock(async () => {
+    const db = await getDb();
+    const rows = await db.select<{ key: string; value: string }[]>(
+      `SELECT key, value FROM settings`
+    );
+    if (rows.length === 0) {
+      await saveSettingsRaw(db, SETTINGS_DEFAULTS);
+      return SETTINGS_DEFAULTS;
+    }
+    const obj: Record<string, unknown> = {};
+    for (const { key, value } of rows) {
+      try { obj[key] = JSON.parse(value); } catch {}
+    }
+    return {
+      ...SETTINGS_DEFAULTS,
+      ...obj,
+      targets: { ...SETTINGS_DEFAULTS.targets, ...(obj.targets as Partial<MacroTargets> | undefined) },
+    } as Settings;
+  });
 }
 
-export async function saveSettings(s: Settings): Promise<void> {
-  const db = await getDb();
+async function saveSettingsRaw(db: Database, s: Settings): Promise<void> {
   const pairs: [string, unknown][] = [
     ['accentColor', s.accentColor],
     ['bgColor', s.bgColor],
@@ -76,20 +86,21 @@ export async function saveSettings(s: Settings): Promise<void> {
     ['geminiApiKey', s.geminiApiKey],
     ['targets', s.targets],
   ];
-  await db.execute('BEGIN');
-  try {
-    for (const [k, v] of pairs) {
-      await db.execute(
-        `INSERT INTO settings(key,value) VALUES($1,$2)
-         ON CONFLICT(key) DO UPDATE SET value=excluded.value`,
-        [k, JSON.stringify(v)]
-      );
-    }
-    await db.execute('COMMIT');
-  } catch (e) {
-    await db.execute('ROLLBACK');
-    throw e;
+  for (const [k, v] of pairs) {
+    await db.execute(
+      `INSERT INTO settings(key,value) VALUES($1,$2)
+       ON CONFLICT(key) DO UPDATE SET value=excluded.value`,
+      [k, JSON.stringify(v)]
+    );
   }
+}
+
+export async function saveSettings(s: Settings): Promise<void> {
+  await withDbLock(async () => {
+    const db = await getDb();
+    await saveSettingsRaw(db, s);
+  });
+  await pushSettingsToSupabase(s);
 }
 
 interface EntryRow {
@@ -115,95 +126,242 @@ function rowToEntry(r: EntryRow): FoodEntry {
 }
 
 export async function loadEntries(): Promise<FoodEntry[]> {
-  const db = await getDb();
-  const rows = await db.select<EntryRow[]>(
-    `SELECT id, timestamp, description, calories, protein, carbs, fat
-     FROM entries ORDER BY timestamp DESC`
-  );
-  return rows.map(rowToEntry);
+  return withDbLock(async () => {
+    const db = await getDb();
+    const rows = await db.select<EntryRow[]>(
+      `SELECT id, timestamp, description, calories, protein, carbs, fat
+       FROM entries ORDER BY timestamp DESC`
+    );
+    return rows.map(rowToEntry);
+  });
 }
 
-async function syncToSupabase(entry: FoodEntry, action: 'insert' | 'update' | 'delete') {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+export async function testSupabaseConnection(): Promise<string> {
+  try {
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr) return `AUTH ERROR: ${authErr.message}`;
+    if (!user) return 'NOT SIGNED IN';
 
-  if (action === 'delete') {
-    await supabase.from('entries').delete().eq('id', entry.id);
-  } else {
-    await supabase.from('entries').upsert({
-      ...entry,
+    const { data, error } = await supabase.from('entries').select('id').limit(1);
+    if (error) return `TABLE ERROR: ${error.message} (code: ${error.code})`;
+    return `OK — user: ${user.email}, rows: ${data?.length ?? 0}`;
+  } catch (e) {
+    return `NETWORK ERROR: ${e instanceof Error ? e.message : String(e)}`;
+  }
+}
+
+export async function pushLocalToSupabase(): Promise<{ pushed: number; errors: string[] }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { pushed: 0, errors: [] };
+
+    const local = await loadEntries();
+    const localIds = new Set(local.map(e => e.id));
+
+    const rows = local.map(e => ({
+      id: e.id,
       user_id: user.id,
-    });
+      timestamp: e.timestamp,
+      description: e.description,
+      calories: Number(e.calories),
+      protein: Number(e.protein),
+      carbs: Number(e.carbs),
+      fat: Number(e.fat),
+    }));
+
+    if (rows.length > 0) {
+      const { error } = await supabase.from('entries').upsert(rows, { onConflict: 'id' });
+      if (error) {
+        console.warn('[sync] pushLocalToSupabase batch failed:', error.message);
+        const errors: string[] = [];
+        let pushed = 0;
+        for (const row of rows) {
+          const { error: singleErr } = await supabase.from('entries').upsert(row, { onConflict: 'id' });
+          if (singleErr) {
+            errors.push(`${row.description}: ${singleErr.message}`);
+          } else {
+            pushed++;
+          }
+        }
+        return { pushed, errors };
+      }
+    }
+
+    const { data: remote, error: fetchErr } = await supabase
+      .from('entries').select('id').eq('user_id', user.id);
+    if (!fetchErr && remote) {
+      for (const r of remote) {
+        if (!localIds.has(r.id)) {
+          await supabase.from('entries').delete().eq('id', r.id);
+        }
+      }
+    }
+
+    return { pushed: rows.length, errors: [] };
+  } catch (e) {
+    console.warn('[sync] pushLocalToSupabase failed:', e);
+    return { pushed: 0, errors: [e instanceof Error ? e.message : String(e)] };
+  }
+}
+
+export async function syncToSupabase(entry: FoodEntry, action: 'insert' | 'update' | 'delete') {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.warn('[sync] Not signed in, skipping sync');
+      return;
+    }
+
+    if (action === 'delete') {
+      const { data, error } = await supabase.from('entries').delete()
+        .eq('id', entry.id)
+        .select();
+      if (error) {
+        console.warn('[sync] Supabase delete failed:', error.message, error.code);
+      } else {
+        console.log(`[sync] Supabase delete OK: ${data?.length ?? 0} row(s) removed for id=${entry.id}`);
+      }
+    } else {
+      const { error } = await supabase.from('entries').upsert({
+        ...entry,
+        user_id: user.id,
+      }, { onConflict: 'id' });
+      if (error) console.warn('[sync] Supabase upsert failed:', error.message, error.code);
+    }
+  } catch (e) {
+    console.warn('[sync] Supabase sync failed (local save unaffected):', e);
   }
 }
 
 export async function insertEntry(e: FoodEntry): Promise<void> {
-  const db = await getDb();
-  await db.execute(
-    `INSERT INTO entries(id,timestamp,description,calories,protein,carbs,fat)
-     VALUES($1,$2,$3,$4,$5,$6,$7)`,
-    [e.id, e.timestamp, e.description, e.calories, e.protein, e.carbs, e.fat]
-  );
+  await withDbLock(async () => {
+    const db = await getDb();
+    await db.execute(
+      `INSERT INTO entries(id,timestamp,description,calories,protein,carbs,fat)
+       VALUES($1,$2,$3,$4,$5,$6,$7)`,
+      [e.id, e.timestamp, e.description, e.calories, e.protein, e.carbs, e.fat]
+    );
+  });
   await syncToSupabase(e, 'insert');
 }
 
 export async function deleteEntryById(id: string): Promise<void> {
-  const db = await getDb();
-  const entry = await db.select<EntryRow[]>(`SELECT * FROM entries WHERE id = $1`, [id]);
-  await db.execute(`DELETE FROM entries WHERE id = $1`, [id]);
+  let entry: EntryRow[] = [];
+  await withDbLock(async () => {
+    const db = await getDb();
+    entry = await db.select<EntryRow[]>(`SELECT * FROM entries WHERE id = $1`, [id]);
+    await db.execute(`DELETE FROM entries WHERE id = $1`, [id]);
+  });
   if (entry.length > 0) await syncToSupabase(rowToEntry(entry[0]), 'delete');
 }
 
 export async function updateEntryById(id: string, patch: Partial<FoodEntry>): Promise<void> {
-  const db = await getDb();
-  const fields: string[] = [];
-  const values: unknown[] = [];
-  let i = 1;
-  for (const k of ['description', 'calories', 'protein', 'carbs', 'fat'] as const) {
-    if (patch[k] !== undefined) {
-      fields.push(`${k} = $${i++}`);
-      values.push(patch[k]);
+  let entry: EntryRow[] = [];
+  await withDbLock(async () => {
+    const db = await getDb();
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    let i = 1;
+    for (const k of ['description', 'calories', 'protein', 'carbs', 'fat'] as const) {
+      if (patch[k] !== undefined) {
+        fields.push(`${k} = $${i++}`);
+        values.push(patch[k]);
+      }
     }
-  }
-  if (fields.length === 0) return;
-  values.push(id);
-  await db.execute(
-    `UPDATE entries SET ${fields.join(', ')} WHERE id = $${i}`,
-    values
-  );
-  const entry = await db.select<EntryRow[]>(`SELECT * FROM entries WHERE id = $1`, [id]);
+    if (fields.length === 0) return;
+    values.push(id);
+    await db.execute(
+      `UPDATE entries SET ${fields.join(', ')} WHERE id = $${i}`,
+      values
+    );
+    entry = await db.select<EntryRow[]>(`SELECT * FROM entries WHERE id = $1`, [id]);
+  });
   if (entry.length > 0) await syncToSupabase(rowToEntry(entry[0]), 'update');
 }
 
-export async function pullFromSupabase(): Promise<number> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return 0;
-
-  const { data: remote, error } = await supabase
-    .from('entries')
-    .select('*')
-    .eq('user_id', user.id);
-
-  if (error || !remote || remote.length === 0) return 0;
-
-  const db = await getDb();
-  let count = 0;
-  await db.execute('BEGIN');
+export async function pullFromSupabase(): Promise<{ pulled: number; deleted: number }> {
   try {
-    for (const r of remote) {
-      const result = await db.execute(
-        `INSERT OR IGNORE INTO entries(id,timestamp,description,calories,protein,carbs,fat)
-         VALUES($1,$2,$3,$4,$5,$6,$7)`,
-        [r.id, r.timestamp, r.description, r.calories, r.protein, r.carbs, r.fat]
-      );
-      if (result.rowsAffected > 0) count++;
-    }
-    await db.execute('COMMIT');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { pulled: 0, deleted: 0 };
+
+    const { data: remote, error } = await supabase
+      .from('entries')
+      .select('*')
+      .eq('user_id', user.id);
+
+    if (error || !remote) return { pulled: 0, deleted: 0 };
+
+    return await withDbLock(async () => {
+      const db = await getDb();
+      const remoteIds = new Set<string>(remote.map(r => r.id));
+      let pulled = 0;
+      let deleted = 0;
+
+      for (const r of remote) {
+        const result = await db.execute(
+          `INSERT OR REPLACE INTO entries(id,timestamp,description,calories,protein,carbs,fat)
+           VALUES($1,$2,$3,$4,$5,$6,$7)`,
+          [r.id, r.timestamp, r.description, r.calories, r.protein, r.carbs, r.fat]
+        );
+        if (result.rowsAffected > 0) pulled++;
+      }
+
+      const local = await db.select<EntryRow[]>('SELECT id FROM entries');
+      for (const l of local) {
+        if (!remoteIds.has(l.id)) {
+          await db.execute('DELETE FROM entries WHERE id = $1', [l.id]);
+          deleted++;
+        }
+      }
+
+      return { pulled, deleted };
+    });
   } catch (e) {
-    await db.execute('ROLLBACK');
-    throw e;
+    console.warn('[sync] Supabase pull failed:', e);
+    return { pulled: 0, deleted: 0 };
   }
-  return count;
+}
+
+export async function pushSettingsToSupabase(s: Settings): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.log('[sync] Not signed in, skipping settings push');
+      return;
+    }
+    const { accentColor, bgColor, cardColor, fontColor, ...syncable } = s;
+    const { error } = await supabase.from('user_settings').upsert({
+      user_id: user.id,
+      settings: syncable,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+    if (error) console.warn('[sync] Settings push failed:', error.message, error.code);
+    else console.log('[sync] Settings pushed to Supabase');
+  } catch (e) {
+    console.warn('[sync] Settings push failed:', e);
+  }
+}
+
+export async function pullSettingsFromSupabase(): Promise<Settings | null> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('settings')
+      .eq('user_id', user.id)
+      .single();
+    if (error) {
+      console.warn('[sync] Settings pull failed:', error.message, error.code);
+      return null;
+    }
+    if (!data) return null;
+    console.log('[sync] Settings pulled from Supabase:', data.settings);
+    return data.settings as Settings;
+  } catch (e) {
+    console.warn('[sync] Settings pull failed:', e);
+    return null;
+  }
 }
 
 export async function importFromLocalStorage(): Promise<boolean> {
@@ -213,9 +371,8 @@ export async function importFromLocalStorage(): Promise<boolean> {
     try {
       const parsed = JSON.parse(oldEntries) as FoodEntry[];
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const db = await getDb();
-        await db.execute('BEGIN');
-        try {
+        await withDbLock(async () => {
+          const db = await getDb();
           for (const e of parsed) {
             await db.execute(
               `INSERT OR IGNORE INTO entries(id,timestamp,description,calories,protein,carbs,fat)
@@ -223,12 +380,8 @@ export async function importFromLocalStorage(): Promise<boolean> {
               [e.id, e.timestamp, e.description, e.calories, e.protein, e.carbs, e.fat]
             );
           }
-          await db.execute('COMMIT');
-          imported = true;
-        } catch (e) {
-          await db.execute('ROLLBACK');
-          throw e;
-        }
+        });
+        imported = true;
       }
     } catch (e) {
       console.error('Failed to import entries from localStorage', e);

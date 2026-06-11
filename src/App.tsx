@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, CSSProperties } from 'react';
+import { useState, useEffect, useCallback, useRef, CSSProperties } from 'react';
 import { Header } from './components/Header';
 import { LogInput } from './components/LogInput';
 import { MacroDashboard } from './components/MacroDashboard';
@@ -8,10 +8,14 @@ import { HistoryModal } from './components/HistoryModal';
 import { AuthModal } from './components/AuthModal';
 import { useSettings } from './hooks/useSettings';
 import { useFoodLog } from './hooks/useFoodLog';
-import { importFromLocalStorage, pullFromSupabase } from './lib/db';
+import { importFromLocalStorage, pullFromSupabase, pushLocalToSupabase, testSupabaseConnection, pullSettingsFromSupabase } from './lib/db';
 import { supabase } from './lib/supabaseClient';
+import { isAndroid } from './lib/platform';
 import type { User } from '@supabase/supabase-js';
+import { PullToRefresh } from './components/PullToRefresh';
 import { DEFAULT_SETTINGS } from './lib/defaults';
+
+// M3 is imported dynamically on Android to avoid top-level await build-time errors on Desktop.
 
 function App() {
   const { settings, setSettings, loading: settingsLoading } = useSettings();
@@ -23,45 +27,173 @@ function App() {
   const [imported, setImported] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [synced, setSynced] = useState(0);
+  const [syncError, setSyncError] = useState('');
+  const [syncStatus, setSyncStatus] = useState('');
+  const syncLockRef = useRef(Promise.resolve());
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+
+  const mergeSettings = useCallback((remote: typeof settings) => {
+    const cur = settingsRef.current;
+    if (!remote || !cur) return;
+    const merged = { ...remote, accentColor: cur.accentColor, bgColor: cur.bgColor, cardColor: cur.cardColor, fontColor: cur.fontColor };
+    if (!merged.geminiModel) merged.geminiModel = DEFAULT_SETTINGS.geminiModel;
+    if (cur.geminiApiKey) merged.geminiApiKey = cur.geminiApiKey;
+    if (cur.dayStartHour !== DEFAULT_SETTINGS.dayStartHour) merged.dayStartHour = cur.dayStartHour;
+    if (JSON.stringify(cur.targets) !== JSON.stringify(DEFAULT_SETTINGS.targets)) merged.targets = cur.targets;
+    setSettings(merged);
+  }, [setSettings]);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) setUser(data.user);
+    if (!settings) return;
+    if (isAndroid() && settings.useSystemTheme) {
+      import('tauri-plugin-m3').then(({ M3 }) => {
+        M3.applyColors('dark').catch(() => {});
+        M3.setBarColor('dark').catch(() => {});
+      }).catch(() => {});
+    }
+  }, [settings]);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        setUser(session.user);
+        await syncLockRef.current;
+        const syncOp = (async () => {
+          const status = await testSupabaseConnection();
+          setSyncStatus(status);
+          if (status.startsWith('OK')) {
+            const { pulled } = await pullFromSupabase();
+            const { pushed } = await pushLocalToSupabase();
+            const remoteSettings = await pullSettingsFromSupabase();
+            if (remoteSettings) mergeSettings(remoteSettings);
+            reload();
+            if (pulled > 0) setSynced(pulled);
+            setSyncStatus(`signed in: pulled ${pulled}, pushed ${pushed}`);
+          }
+        })();
+        syncLockRef.current = syncOp.then(() => {}, () => {});
+        await syncOp;
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setSyncStatus('');
+      }
+    });
+
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (data.user) {
+        setUser(data.user);
+        const syncOp = (async () => {
+          const status = await testSupabaseConnection();
+          setSyncStatus(status);
+          if (status.startsWith('OK')) {
+            const { pulled } = await pullFromSupabase();
+            const { pushed } = await pushLocalToSupabase();
+            const remoteSettings = await pullSettingsFromSupabase();
+            if (remoteSettings) mergeSettings(remoteSettings);
+            reload();
+            if (pulled > 0) setSynced(pulled);
+            setSyncStatus(`pulled ${pulled}, pushed ${pushed}`);
+          }
+        })();
+        syncLockRef.current = syncOp.then(() => {}, () => {});
+        await syncOp;
+      }
     });
     importFromLocalStorage().then(did => { if (did) setImported(true); });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleAuthChange = useCallback(async () => {
     const { data } = await supabase.auth.getUser();
     setUser(data.user ?? null);
+    setSynced(0);
+    setSyncError('');
 
     if (data.user) {
-      const count = await pullFromSupabase();
-      if (count > 0) {
-        setSynced(count);
-        reload();
+      const status = await testSupabaseConnection();
+      setSyncStatus(status);
+      if (status.startsWith('OK')) {
+        try {
+          const { pulled } = await pullFromSupabase();
+          if (pulled > 0) {
+            setSynced(pulled);
+          }
+          const { pushed, errors } = await pushLocalToSupabase();
+          if (pushed > 0) {
+            setSyncStatus(`pulled ${pulled}, pushed ${pushed} entries`);
+          }
+          if (errors.length > 0) {
+            setSyncError(`push errors: ${errors.join('; ')}`);
+          }
+          const remoteSettings = await pullSettingsFromSupabase();
+          if (remoteSettings) mergeSettings(remoteSettings);
+          reload();
+        } catch (e) {
+          setSyncError(e instanceof Error ? e.message : 'Sync failed');
+        }
+      } else {
+        setSyncError(status);
       }
+    } else {
+      setSyncStatus('');
+    }
+  }, [reload]);
+
+  const handleRefresh = useCallback(async () => {
+    const status = await testSupabaseConnection();
+    setSyncStatus(status);
+    if (status.startsWith('OK')) {
+      const { pulled } = await pullFromSupabase();
+      const { pushed } = await pushLocalToSupabase();
+      const remoteSettings = await pullSettingsFromSupabase();
+      if (remoteSettings) mergeSettings(remoteSettings);
+      reload();
+      if (pulled > 0) setSynced(pulled);
+      setSyncStatus(`refreshed: pulled ${pulled}, pushed ${pushed}`);
+    }
+    if (isAndroid() && settingsRef.current?.useSystemTheme) {
+      import('tauri-plugin-m3').then(({ M3 }) => {
+        M3.applyColors('dark').catch(() => {});
+        M3.setBarColor('dark').catch(() => {});
+      }).catch(() => {});
     }
   }, [reload]);
 
   if (settingsLoading || logLoading || !settings) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-zinc-400 flex items-center justify-center font-mono text-[10px] uppercase tracking-widest">
-        // initializing local store
+      <div className="min-h-screen flex items-center justify-center font-mono text-[10px] uppercase tracking-widest" style={{ backgroundColor: 'var(--background, #202225)', color: 'var(--onBackground, #dcddde)' }}>
+        Initializing local store
       </div>
     );
   }
 
-  const containerStyle = {
-    '--accent': settings.accentColor,
-    '--bg': settings.bgColor,
-    '--card': settings.cardColor,
-    '--font': settings.fontColor,
-  } as CSSProperties;
+  const mixHex = (a: string, b: string, ratio: number): string => {
+    const p = (h: string) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+    const [ar, ag, ab] = p(a);
+    const [br, bg, bb] = p(b);
+    const m = (x: number, y: number) => Math.round(x * ratio + y * (1 - ratio));
+    return `#${[m(ar, br), m(ag, bg), m(ab, bb)].map(v => v.toString(16).padStart(2, '0')).join('')}`;
+  };
+
+  const useM3 = isAndroid() && settings.useSystemTheme;
+
+  const containerStyle = (useM3
+    ? {}
+    : {
+        '--accent': settings.accentColor,
+        '--bg': settings.bgColor,
+        '--card': settings.cardColor,
+        '--font': settings.fontColor,
+        '--surfaceContainerLowest': mixHex(settings.cardColor, '#000000', 0.55),
+        '--surfaceContainerLow': mixHex(settings.cardColor, '#000000', 0.7),
+      }) as CSSProperties;
 
   return (
-    <div style={containerStyle} className="min-h-screen bg-[var(--bg)] text-[var(--font)] font-sans transition-colors duration-300">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-12">
+    <div style={{ ...containerStyle, backgroundColor: useM3 ? 'var(--background)' : 'var(--bg, var(--background))', color: useM3 ? 'var(--onBackground)' : 'var(--font, var(--onBackground))', fontFamily: "'Inter', system-ui, sans-serif" }} className="min-h-screen transition-colors duration-300">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-12 sm:pt-0 pb-12">
+        <PullToRefresh onRefresh={handleRefresh}>
         <Header
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenHistory={() => setIsHistoryOpen(true)}
@@ -71,28 +203,22 @@ function App() {
         />
 
         {imported && (
-          <div className="mt-3 mb-3 text-[10px] font-mono text-zinc-500 uppercase tracking-widest">
-            // imported legacy data from localStorage
-          </div>
-        )}
-
-        {synced > 0 && (
-          <div className="mt-3 mb-3 text-[10px] font-mono text-emerald-500 uppercase tracking-widest">
-            // synced {synced} entries from cloud
+          <div className="mt-3 mb-3 text-[10px] font-mono uppercase tracking-widest" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
+            Imported legacy data from localStorage
           </div>
         )}
 
         <main className="space-y-6 md:space-y-6 pb-28 md:pb-0">
           <section className="hidden md:block">
-            <LogInput onLog={addEntry} apiKey={settings.geminiApiKey} />
+            <LogInput onLog={addEntry} apiKey={settings.geminiApiKey} model={settings.geminiModel} />
           </section>
 
           <section>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[10px] uppercase tracking-widest text-zinc-500 font-mono font-bold">
-                // Macro Telemetry
+              <h2 className="text-[10px] uppercase tracking-widest font-mono font-bold" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
+                Macro Telemetry
               </h2>
-              <span className="text-[10px] text-zinc-600 font-mono">
+              <span className="text-[10px] font-mono" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
                 {todaysEntries.length} entries
               </span>
             </div>
@@ -101,8 +227,8 @@ function App() {
 
           <section>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[10px] uppercase tracking-widest text-zinc-500 font-mono font-bold">
-                // Today's Log
+              <h2 className="text-[10px] uppercase tracking-widest font-mono font-bold" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
+                Today's Log
               </h2>
             </div>
             <TodaysLog
@@ -113,11 +239,12 @@ function App() {
           </section>
         </main>
 
-        <footer className="mt-12 pt-6 border-t border-zinc-900 text-center">
-          <p className="text-[10px] text-zinc-700 font-mono uppercase tracking-widest">
-            Spoons and Forks v0.1.0 // Local-First
+        <footer className="mt-12 pt-6 border-t text-center" style={{ borderColor: 'var(--outlineVariant, #44464E)' }}>
+          <p className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
+            Made by Howwid with ♥
           </p>
         </footer>
+        </PullToRefresh>
       </div>
 
       <SettingsModal
@@ -125,6 +252,11 @@ function App() {
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onSave={setSettings}
+        syncStatus={syncStatus}
+        syncError={syncError}
+        user={user}
+        onSync={handleRefresh}
+        onAuthChange={handleAuthChange}
       />
 
       <HistoryModal
@@ -141,8 +273,8 @@ function App() {
         onAuthChange={handleAuthChange}
       />
 
-      <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--bg)]/95 backdrop-blur-sm border-t border-zinc-800 p-3">
-        <LogInput onLog={addEntry} apiKey={settings.geminiApiKey} />
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-40 backdrop-blur-sm border-t p-3" style={{ backgroundColor: 'color-mix(in srgb, var(--bg, var(--background)) 95%, transparent)', borderColor: 'var(--outlineVariant, #44464E)' }}>
+        <LogInput onLog={addEntry} apiKey={settings.geminiApiKey} model={settings.geminiModel} />
       </div>
     </div>
   );

@@ -23,13 +23,13 @@ const StatBar = ({
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex items-baseline justify-between">
-        <span className="text-[10px] sm:text-xs uppercase tracking-widest text-zinc-500 font-mono font-bold">{label}</span>
-        <span className="font-mono text-xs sm:text-sm text-zinc-300">
+        <span className="text-[10px] sm:text-xs uppercase tracking-widest font-mono font-bold" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>{label}</span>
+        <span className="font-mono text-xs sm:text-sm" style={{ color: 'var(--onSurface, #dcddde)' }}>
           <span style={{ color }} className="font-bold">{current.toLocaleString()}</span>
-          <span className="text-zinc-600"> / {target.toLocaleString()}{unit}</span>
+          <span style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}> / {target.toLocaleString()}{unit}</span>
         </span>
       </div>
-      <div className="h-2 w-full bg-zinc-950/40 border border-zinc-900/50 rounded-full overflow-hidden">
+      <div className="h-2 w-full rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surfaceContainerLowest, #0C0E14)', border: '1px solid var(--outlineVariant, #44464E)' }}>
         <div
           className="h-full transition-all duration-500 ease-out rounded-full"
           style={{ width: `${percentage}%`, backgroundColor: color }}
@@ -51,19 +51,19 @@ export const MacroDashboard = ({ entries, targets }: MacroDashboardProps) => {
   );
 
   return (
-    <div className="p-5 bg-[var(--card)] border border-zinc-800 rounded-3xl shadow-lg">
+    <div className="p-5 rounded-3xl shadow-lg" style={{ backgroundColor: 'var(--card, #2f3136)', border: '1px solid var(--outlineVariant, #44464E)' }}>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-zinc-950/20 border border-zinc-800 rounded-2xl p-4 shadow-sm transition-all hover:border-[var(--accent)]/30">
-          <StatBar label="Calories" current={totals.calories} target={targets.calories} unit="" color="var(--accent)" />
+        <div className="rounded-2xl p-4 shadow-sm transition-all" style={{ backgroundColor: 'var(--surfaceContainerLow, #1B1B1D)', border: '1px solid var(--outlineVariant, #44464E)' }}>
+          <StatBar label="Calories" current={totals.calories} target={targets.calories} unit="" color="var(--accent, #5865F2)" />
         </div>
-        <div className="bg-zinc-950/20 border border-zinc-800 rounded-2xl p-4 shadow-sm transition-all hover:border-[var(--accent)]/30">
-          <StatBar label="Protein" current={totals.protein} target={targets.protein} unit="g" color="var(--accent)" />
+        <div className="rounded-2xl p-4 shadow-sm transition-all" style={{ backgroundColor: 'var(--surfaceContainerLow, #1B1B1D)', border: '1px solid var(--outlineVariant, #44464E)' }}>
+          <StatBar label="Protein" current={totals.protein} target={targets.protein} unit="g" color="var(--accent, #5865F2)" />
         </div>
-        <div className="bg-zinc-950/20 border border-zinc-800 rounded-2xl p-4 shadow-sm transition-all hover:border-[var(--accent)]/30">
-          <StatBar label="Carbs" current={totals.carbs} target={targets.carbs} unit="g" color="var(--accent)" />
+        <div className="rounded-2xl p-4 shadow-sm transition-all" style={{ backgroundColor: 'var(--surfaceContainerLow, #1B1B1D)', border: '1px solid var(--outlineVariant, #44464E)' }}>
+          <StatBar label="Carbs" current={totals.carbs} target={targets.carbs} unit="g" color="var(--accent, #5865F2)" />
         </div>
-        <div className="bg-zinc-950/20 border border-zinc-800 rounded-2xl p-4 shadow-sm transition-all hover:border-[var(--accent)]/30">
-          <StatBar label="Fats" current={totals.fat} target={targets.fat} unit="g" color="var(--accent)" />
+        <div className="rounded-2xl p-4 shadow-sm transition-all" style={{ backgroundColor: 'var(--surfaceContainerLow, #1B1B1D)', border: '1px solid var(--outlineVariant, #44464E)' }}>
+          <StatBar label="Fats" current={totals.fat} target={targets.fat} unit="g" color="var(--accent, #5865F2)" />
         </div>
       </div>
     </div>

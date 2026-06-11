@@ -22,5 +22,7 @@ export interface Settings {
   fontColor: string;
   dayStartHour: number;
   geminiApiKey: string;
+  geminiModel: string;
   targets: MacroTargets;
+  useSystemTheme: boolean;
 }
