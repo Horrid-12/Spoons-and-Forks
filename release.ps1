@@ -315,7 +315,7 @@ if ($GitCommit -and (-not $DryRun)) {
             "src-tauri/Cargo.toml",
             "Icon.png"
         )
-        Invoke-External "git.exe" @("add") + $staged
+        Invoke-External "git.exe" (@("add") + $staged)
         Invoke-External "git.exe" @("commit", "-m", $CommitMessage)
     }
 }

@@ -23,8 +23,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-Agent.md
- release.ps1
 
 # Rust / Tauri
 src-tauri/target/
@@ -46,6 +44,6 @@ keystore.properties
 Thumbs.db
 ehthumbs.db
 desktop.ini
-AGENTS.md
 Architecture.md
-
+Agent.md
+release.ps1
