@@ -1,6 +1,6 @@
 [package]
 name = "spoons-and-forks"
-version = "1.0.0"
+version = "1.0.1"
 description = "Spoons and Forks - Hyper-minimalist Calorie & Macro Tracker"
 authors = ["You"]
 edition = "2021"
@@ -16,8 +16,10 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 tauri-plugin-m3 = "0.3.2"
+tauri-plugin-updater = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
 
 
 
