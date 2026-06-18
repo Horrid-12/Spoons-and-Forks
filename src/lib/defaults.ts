@@ -16,5 +16,5 @@ export const DEFAULT_SETTINGS: Settings = {
   geminiApiKey: '',
   geminiModel: 'gemini-3.5-flash',
   targets: DEFAULT_TARGETS,
-  useSystemTheme: false,
+  useSystemTheme: true,
 };

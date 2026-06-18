@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { X, Eye, EyeOff, RefreshCw, User, LogOut } from 'lucide-react';
+import { X, Eye, EyeOff, RefreshCw, User, LogOut, Download } from 'lucide-react';
+import { check } from '@tauri-apps/plugin-updater';
 import { Settings } from '../types';
 import { GEMINI_MODELS } from '../lib/ai';
 import { isAndroid } from '../lib/platform';
@@ -53,6 +54,8 @@ export const SettingsModal = ({ isOpen, onClose, settings, onSave, syncStatus, s
   const [saveError, setSaveError] = useState('');
   const [saving, setSaving] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState('');
 
   useEffect(() => {
     if (isOpen) setLocalSettings(settings);
@@ -95,6 +98,23 @@ export const SettingsModal = ({ isOpen, onClose, settings, onSave, syncStatus, s
       onAuthChange();
     } finally {
       setSigningOut(false);
+    }
+  };
+
+  const handleCheckUpdate = async () => {
+    setUpdateError('');
+    setUpdating(true);
+    try {
+      const update = await check();
+      if (update) {
+        await update.downloadAndInstall();
+      } else {
+        setUpdateError('Already up to date');
+      }
+    } catch (e) {
+      setUpdateError(e instanceof Error ? e.message : 'Update check failed');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -218,6 +238,29 @@ export const SettingsModal = ({ isOpen, onClose, settings, onSave, syncStatus, s
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Updates */}
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest font-mono mb-3" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
+              Updates
+            </label>
+            <div className="space-y-3 p-4 rounded-2xl" style={{ backgroundColor: 'var(--surfaceContainerLowest, #0C0E14)', border: '1px solid var(--outlineVariant, #44464E)' }}>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCheckUpdate}
+                  disabled={updating}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-xs uppercase tracking-widest font-mono font-bold rounded-xl transition-opacity hover:opacity-90 disabled:opacity-50"
+                  style={{ backgroundColor: 'var(--accent, #5865F2)', color: 'var(--onPrimary, #FFFFFF)' }}
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  {updating ? 'Checking...' : 'Check for Updates'}
+                </button>
+              </div>
+              {updateError && (
+                <p className="text-[10px] font-mono" style={{ color: 'var(--error, #F2B8B5)' }}>{updateError}</p>
+              )}
             </div>
           </div>
 

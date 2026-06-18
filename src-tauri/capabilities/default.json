@@ -10,6 +10,9 @@
     "sql:allow-execute",
     "sql:allow-select",
     "sql:allow-close",
-    "m3:default"
+    "m3:default",
+    "updater:default",
+    "updater:allow-check",
+    "updater:allow-download-and-install"
   ]
 }

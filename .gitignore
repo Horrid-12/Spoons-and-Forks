@@ -39,11 +39,14 @@ src-tauri/target/
 *.pem
 *.jks
 keystore.properties
+updater.key
+updater.key.pub
 
 # OS
 Thumbs.db
 ehthumbs.db
 desktop.ini
 Architecture.md
-Agents.md
+AGENTS.md
+SECURITY.md
 release.ps1

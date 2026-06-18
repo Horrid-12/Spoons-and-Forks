@@ -51,7 +51,7 @@ const SETTINGS_DEFAULTS: Settings = {
   geminiApiKey: '',
   geminiModel: 'gemini-3.5-flash',
   targets: { calories: 2500, protein: 150, carbs: 300, fat: 80 },
-  useSystemTheme: false,
+  useSystemTheme: true,
 };
 
 export async function loadSettings(): Promise<Settings> {

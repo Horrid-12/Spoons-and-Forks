@@ -26,6 +26,9 @@ function App() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [imported, setImported] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [m3Ready, setM3Ready] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [updateVersion, setUpdateVersion] = useState('');
   const [synced, setSynced] = useState(0);
   const [syncError, setSyncError] = useState('');
   const [syncStatus, setSyncStatus] = useState('');
@@ -47,12 +50,34 @@ function App() {
   useEffect(() => {
     if (!settings) return;
     if (isAndroid() && settings.useSystemTheme) {
+      let cancelled = false;
       import('tauri-plugin-m3').then(({ M3 }) => {
-        M3.applyColors('dark').catch(() => {});
-        M3.setBarColor('dark').catch(() => {});
-      }).catch(() => {});
+        if (cancelled) return;
+        return M3.applyColors('dark').then(() => {
+          if (cancelled) return;
+          return M3.setBarColor('dark').then(() => {
+            if (!cancelled) setM3Ready(true);
+          });
+        });
+      }).catch(() => {
+        if (!cancelled) setM3Ready(true);
+      });
+      return () => { cancelled = true; };
+    } else {
+      setM3Ready(true);
     }
   }, [settings]);
+
+  useEffect(() => {
+    import('@tauri-apps/plugin-updater').then(({ check }) => {
+      check().then(u => {
+        if (u) {
+          setUpdateAvailable(true);
+          setUpdateVersion(u.version);
+        }
+      }).catch(() => {});
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -141,6 +166,18 @@ function App() {
     }
   }, [reload]);
 
+  const handleUpdate = useCallback(async () => {
+    if (isAndroid()) {
+      window.open('https://github.com/Horrid-12/Spoons-and-Forks/releases', '_blank');
+    } else {
+      import('@tauri-apps/plugin-updater').then(({ check }) => {
+        check().then(u => {
+          if (u) u.downloadAndInstall();
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+  }, []);
+
   const handleRefresh = useCallback(async () => {
     const status = await testSupabaseConnection();
     setSyncStatus(status);
@@ -161,10 +198,10 @@ function App() {
     }
   }, [reload]);
 
-  if (settingsLoading || logLoading || !settings) {
+  if (settingsLoading || logLoading || !settings || (isAndroid() && settings.useSystemTheme && !m3Ready)) {
     return (
       <div className="min-h-screen flex items-center justify-center font-mono text-[10px] uppercase tracking-widest" style={{ backgroundColor: 'var(--background, #202225)', color: 'var(--onBackground, #dcddde)' }}>
-        Initializing local store
+        Why don't you order a sandwich while you wait? Oh, you did.
       </div>
     );
   }
@@ -198,6 +235,9 @@ function App() {
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenHistory={() => setIsHistoryOpen(true)}
           onOpenAuth={() => setIsAuthOpen(true)}
+          onUpdate={handleUpdate}
+          updateAvailable={updateAvailable}
+          updateVersion={updateVersion}
           user={user}
           dayStartHour={settings.dayStartHour}
         />

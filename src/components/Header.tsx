@@ -7,11 +7,14 @@ interface HeaderProps {
   onOpenSettings: () => void;
   onOpenHistory: () => void;
   onOpenAuth: () => void;
+  onUpdate: () => void;
+  updateAvailable: boolean;
+  updateVersion: string;
   user: UserType | null;
   dayStartHour: number;
 }
 
-export const Header = ({ onOpenSettings, onOpenHistory, onOpenAuth, user, dayStartHour }: HeaderProps) => {
+export const Header = ({ onOpenSettings, onOpenHistory, onOpenAuth, onUpdate, updateAvailable, updateVersion, user, dayStartHour }: HeaderProps) => {
   const todayString = getLogicalDayString(Date.now(), dayStartHour);
 
   const handleSignOut = async () => {
@@ -26,6 +29,16 @@ export const Header = ({ onOpenSettings, onOpenHistory, onOpenAuth, user, daySta
         <h1 className="text-2xl font-extrabold tracking-tight uppercase font-sans" style={{ color: 'var(--onBackground, #dcddde)' }}>
           Spoons and Forks<span style={{ color: 'var(--accent, #5865F2)' }}>.</span>
         </h1>
+        {updateAvailable && (
+          <button
+            onClick={onUpdate}
+            className="px-2 py-0.5 text-[9px] uppercase tracking-widest font-mono font-bold rounded-full animate-pulse transition-opacity hover:opacity-80"
+            style={{ backgroundColor: 'var(--accent, #5865F2)', color: 'var(--onPrimary, #FFFFFF)' }}
+            title={`Update v${updateVersion} available`}
+          >
+            Update
+          </button>
+        )}
       </div>
       <div className="flex items-center gap-4">
         <div className="hidden sm:flex flex-col items-end">
