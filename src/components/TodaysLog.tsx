@@ -50,11 +50,11 @@ export const TodaysLog = ({ entries, onDelete, onUpdate }: TodaysLogProps) => {
             No entries logged for this cycle
           </div>
         ) : (
-          entries.map((entry) => (
+          entries.map((entry, index) => (
             <div 
               key={entry.id} 
-              className="grid grid-cols-12 gap-2 px-3 py-2.5 items-center text-sm rounded-xl group shadow-sm transition-all"
-              style={{ backgroundColor: 'var(--surfaceContainerLowest, #0C0E14)', border: '1px solid var(--outlineVariant, #44464E)' }}
+              className="grid grid-cols-12 gap-2 px-3 py-2.5 items-center text-sm rounded-xl group shadow-sm transition-all animate-fade-in-up"
+              style={{ backgroundColor: 'var(--surfaceContainerLowest, #0C0E14)', border: '1px solid var(--outlineVariant, #44464E)', animationDelay: `${index * 50}ms` }}
             >
               <div className="col-span-3 sm:col-span-2 font-mono text-xs" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
                 {formatTime(entry.timestamp)}

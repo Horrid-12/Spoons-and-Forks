@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Eye, EyeOff, RefreshCw, User, LogOut, Download } from 'lucide-react';
+import { AnimatedModal } from './AnimatedModal';
 import { check } from '@tauri-apps/plugin-updater';
 import { Settings } from '../types';
 import { GEMINI_MODELS } from '../lib/ai';
@@ -75,7 +76,7 @@ export const SettingsModal = ({ isOpen, onClose, settings, onSave, syncStatus, s
     };
   }, [isOpen, onClose, saving]);
 
-  if (!isOpen) return null;
+  // if (!isOpen) return null; // Handled by AnimatedModal
 
   const handleSave = async () => {
     try {
@@ -129,8 +130,11 @@ export const SettingsModal = ({ isOpen, onClose, settings, onSave, syncStatus, s
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--background, #202225) 80%, transparent)' }}>
-      <div className="w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto rounded-3xl" style={{ backgroundColor: 'var(--card, #2f3136)', border: '1px solid var(--outlineVariant, #44464E)' }}>
+    <AnimatedModal
+      isOpen={isOpen}
+      className="max-w-md max-h-[90vh] overflow-y-auto rounded-3xl"
+      style={{ backgroundColor: 'var(--card, #2f3136)', border: '1px solid var(--outlineVariant, #44464E)' }}
+    >
         <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid var(--outlineVariant, #44464E)' }}>
           <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: 'var(--onSurface, #dcddde)' }}>
             System Configuration
@@ -422,7 +426,6 @@ export const SettingsModal = ({ isOpen, onClose, settings, onSave, syncStatus, s
             {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
-      </div>
-    </div>
+    </AnimatedModal>
   );
 };

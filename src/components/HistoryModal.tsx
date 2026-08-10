@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { X, ChevronDown, ChevronRight } from 'lucide-react';
+import { AnimatedModal } from './AnimatedModal';
 import { FoodEntry } from '../types';
 import { getLogicalDayString, getReadableDay } from '../lib/dayLogic';
 
@@ -54,15 +55,18 @@ export const HistoryModal = ({ isOpen, onClose, entries, dayStartHour, onDelete 
     });
   };
 
-  if (!isOpen) return null;
+  // if (!isOpen) return null; // Handled by AnimatedModal
 
   const formatTime = (timestamp: number) => {
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--background, #202225) 80%, transparent)' }}>
-      <div className="w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col rounded-3xl" style={{ backgroundColor: 'var(--card, #2f3136)', border: '1px solid var(--outlineVariant, #44464E)' }}>
+    <AnimatedModal
+      isOpen={isOpen}
+      className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col rounded-3xl"
+      style={{ backgroundColor: 'var(--card, #2f3136)', border: '1px solid var(--outlineVariant, #44464E)' }}
+    >
         <div className="flex items-center justify-between p-4 shrink-0" style={{ borderBottom: '1px solid var(--outlineVariant, #44464E)' }}>
           <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: 'var(--onSurface, #dcddde)' }}>
             Food History
@@ -104,43 +108,44 @@ export const HistoryModal = ({ isOpen, onClose, entries, dayStartHour, onDelete 
                     </div>
                   </button>
 
-                  {isOpen && (
-                    <div className="px-3 py-2 space-y-1.5" style={{ borderTop: '1px solid var(--outlineVariant, #44464E)', backgroundColor: 'var(--surfaceContainerLowest, #0C0E14)' }}>
-                      {items.map(entry => (
-                        <div
-                          key={entry.id}
-                          className="grid grid-cols-12 gap-2 px-3 py-2 items-center text-xs rounded-xl"
-                          style={{ backgroundColor: 'var(--surfaceContainerLow, #1B1B1D)', border: '1px solid var(--outlineVariant, #44464E)' }}
-                        >
-                          <div className="col-span-2 sm:col-span-2 font-mono" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
-                            {formatTime(entry.timestamp)}
+                  <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                    <div className="overflow-hidden">
+                      <div className="px-3 py-2 space-y-1.5" style={{ borderTop: '1px solid var(--outlineVariant, #44464E)', backgroundColor: 'var(--surfaceContainerLowest, #0C0E14)' }}>
+                        {items.map(entry => (
+                          <div
+                            key={entry.id}
+                            className="grid grid-cols-12 gap-2 px-3 py-2 items-center text-xs rounded-xl"
+                            style={{ backgroundColor: 'var(--surfaceContainerLow, #1B1B1D)', border: '1px solid var(--outlineVariant, #44464E)' }}
+                          >
+                            <div className="col-span-2 sm:col-span-2 font-mono" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
+                              {formatTime(entry.timestamp)}
+                            </div>
+                            <div className="col-span-7 sm:col-span-6 truncate" style={{ color: 'var(--onSurface, #dcddde)' }} title={entry.description}>
+                              {entry.description}
+                            </div>
+                            <div className="col-span-2 text-right font-mono font-bold" style={{ color: 'var(--accent, #5865F2)' }}>
+                              {entry.calories}
+                            </div>
+                            <div className="col-span-1 flex justify-end">
+                              <button
+                                onClick={() => onDelete(entry.id)}
+                                className="hover:opacity-80 p-1 rounded-full transition-colors"
+                                style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}
+                                aria-label="Delete entry"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
                           </div>
-                          <div className="col-span-7 sm:col-span-6 truncate" style={{ color: 'var(--onSurface, #dcddde)' }} title={entry.description}>
-                            {entry.description}
-                          </div>
-                          <div className="col-span-2 text-right font-mono font-bold" style={{ color: 'var(--accent, #5865F2)' }}>
-                            {entry.calories}
-                          </div>
-                          <div className="col-span-1 flex justify-end">
-                            <button
-                              onClick={() => onDelete(entry.id)}
-                              className="hover:opacity-80 p-1 rounded-full transition-colors"
-                              style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}
-                              aria-label="Delete entry"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               );
             })
           )}
         </div>
-      </div>
-    </div>
+    </AnimatedModal>
   );
 };

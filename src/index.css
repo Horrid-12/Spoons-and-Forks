@@ -70,3 +70,49 @@
 .input-accent-bg {
   background-color: color-mix(in srgb, var(--accent) 20%, var(--card));
 }
+
+/* --- Animations --- */
+
+@keyframes modal-enter {
+  from { opacity: 0; transform: translateY(15px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes modal-exit {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(10px) scale(0.98); }
+}
+
+@keyframes backdrop-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes backdrop-exit {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.animate-modal-enter { 
+  animation: modal-enter 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; 
+}
+.animate-modal-exit { 
+  animation: modal-exit 0.2s cubic-bezier(0.4, 0, 1, 1) forwards; 
+}
+.animate-backdrop-enter { 
+  animation: backdrop-enter 0.3s ease-out forwards; 
+}
+.animate-backdrop-exit { 
+  animation: backdrop-exit 0.2s ease-in forwards; 
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+

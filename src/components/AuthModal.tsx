@@ -1,5 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { X, Loader2 } from 'lucide-react';
+import { AnimatedModal } from './AnimatedModal';
 import { supabase } from '../lib/supabaseClient';
 
 interface AuthModalProps {
@@ -23,7 +24,7 @@ export const AuthModal = ({ isOpen, onClose, onAuthChange }: AuthModalProps) => 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  // if (!isOpen) return null; // Handled by AnimatedModal
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -55,8 +56,11 @@ export const AuthModal = ({ isOpen, onClose, onAuthChange }: AuthModalProps) => 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--background, #202225) 80%, transparent)' }}>
-      <div className="w-full max-w-sm rounded-3xl p-6 shadow-2xl" style={{ backgroundColor: 'var(--card, #2f3136)', border: '1px solid var(--outlineVariant, #44464E)' }}>
+    <AnimatedModal
+      isOpen={isOpen}
+      className="max-w-sm rounded-3xl p-6"
+      style={{ backgroundColor: 'var(--card, #2f3136)', border: '1px solid var(--outlineVariant, #44464E)' }}
+    >
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xs uppercase tracking-widest font-mono font-bold" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
             Account
@@ -109,7 +113,6 @@ export const AuthModal = ({ isOpen, onClose, onAuthChange }: AuthModalProps) => 
             <>Already have one?{' '}<button onClick={() => { setMode('signin'); setError(''); }} style={{ color: 'var(--accent, #5865F2)' }} className="underline">Sign in</button></>
           )}
         </p>
-      </div>
-    </div>
+    </AnimatedModal>
   );
 };

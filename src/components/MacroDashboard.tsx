@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Settings, FoodEntry } from '../types';
 
 interface MacroDashboardProps {
@@ -18,7 +19,15 @@ const StatBar = ({
   unit: string;
   color: string;
 }) => {
+  const [animatedPercentage, setAnimatedPercentage] = useState(0);
   const percentage = Math.min(100, Math.round((current / target) * 100));
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAnimatedPercentage(percentage);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [percentage]);
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -32,7 +41,7 @@ const StatBar = ({
       <div className="h-2 w-full rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surfaceContainerLowest, #0C0E14)', border: '1px solid var(--outlineVariant, #44464E)' }}>
         <div
           className="h-full transition-all duration-500 ease-out rounded-full"
-          style={{ width: `${percentage}%`, backgroundColor: color }}
+          style={{ width: `${animatedPercentage}%`, backgroundColor: color }}
         />
       </div>
     </div>
