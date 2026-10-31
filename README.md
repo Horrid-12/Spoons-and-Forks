@@ -29,6 +29,8 @@
 <a href="#security">Security</a> ·
 <a href="#license">License</a>
 
+[![Architecture diagram of Spoons and Forks](https://gitdiagram.com/horrid-12/spoons-and-forks/diagram.png)](https://gitdiagram.com/horrid-12/spoons-and-forks?utm_source=readme&utm_medium=picture)
+
 ## <img src="./docs/assets/icons/sparkles.svg" width="18" alt=""> Features
 
 ### <img src="./docs/assets/icons/brain.svg" width="16" alt=""> AI Logging
