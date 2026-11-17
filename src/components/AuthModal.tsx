@@ -2,6 +2,7 @@ import { useState, useEffect, FormEvent } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { AnimatedModal } from './AnimatedModal';
 import { supabase } from '../lib/supabaseClient';
+import { Ornament } from './decor';
 
 interface AuthModalProps { isOpen: boolean; onClose: () => void; onAuthChange: () => void; }
 
@@ -31,9 +32,9 @@ export const AuthModal = ({ isOpen, onClose, onAuthChange }: AuthModalProps) => 
   };
 
   return (
-    <AnimatedModal isOpen={isOpen} className="max-w-sm rounded-3xl p-6" style={{ backgroundColor: 'var(--card)', border: '1px solid var(--outlineVariant)', boxShadow: '0 20px 60px rgba(30,40,65,.18)' }}>
-      <div className="flex items-center justify-between mb-6">
-        <div><p className="coastal-kicker">Welcome to the table</p><h2 className="text-xl font-semibold">Your account</h2></div>
+    <AnimatedModal isOpen={isOpen} className="max-w-sm rounded-2xl p-6" style={{ backgroundColor: 'var(--card)', border: '1px solid var(--outlineVariant)', boxShadow: '0 20px 60px rgba(30,40,65,.18)' }}>
+      <div className="flex items-center justify-between mb-5">
+        <div><p className="coastal-kicker mb-0.5 flex items-center gap-1.5"><Ornament className="w-2 h-2" style={{ color: '#A9C448' }} />Welcome to the table</p><h2 className="text-xl font-semibold">Your account</h2></div>
         <button onClick={onClose} style={{ color: 'var(--onSurfaceVariant)' }} aria-label="Close"><X className="w-4 h-4" /></button>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">

@@ -13,6 +13,8 @@ import { supabase } from './lib/supabaseClient';
 import { isAndroid } from './lib/platform';
 import type { User } from '@supabase/supabase-js';
 import { PullToRefresh } from './components/PullToRefresh';
+import { SectionTitle, Ornament } from './components/decor';
+import { KitchenNotes } from './components/KitchenNotes';
 import { DEFAULT_SETTINGS } from './lib/defaults';
 
 function App() {
@@ -231,8 +233,8 @@ function App() {
       }) as CSSProperties;
 
   return (
-    <div style={{ ...containerStyle, backgroundColor: useM3 ? 'var(--background)' : 'var(--bg, var(--background))', color: useM3 ? 'var(--onBackground)' : 'var(--font, var(--onBackground))', fontFamily: "'DM Sans', sans-serif" }} className="coastal-app min-h-screen transition-colors duration-300">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-8 sm:pt-5 pb-12">
+    <div style={{ ...containerStyle, backgroundColor: useM3 ? 'var(--background)' : 'var(--bg, var(--background))', color: useM3 ? 'var(--onBackground)' : 'var(--font, var(--onBackground))', fontFamily: "'Epilogue', sans-serif" }} className="coastal-app min-h-screen transition-colors duration-300">
+      <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-6 sm:pt-4 pb-24 md:pb-8 flex min-h-screen flex-col">
         <PullToRefresh onRefresh={handleRefresh}>
         <Header
           onOpenSettings={() => setIsSettingsOpen(true)}
@@ -245,44 +247,46 @@ function App() {
           dayStartHour={settings.dayStartHour}
         />
 
-        <main className="space-y-7 md:space-y-8 pb-28 md:pb-0">
-          <section className="hidden md:block">
-            <LogInput onLog={addEntry} apiKey={settings.geminiApiKey} model={settings.geminiModel} />
-          </section>
+        <main className="mt-5 flex-1 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_21rem] gap-5 md:gap-6 lg:gap-7 items-start pb-4 md:pb-2">
+          {/* Journal column: logging + today's table */}
+          <div className="min-w-0 space-y-5 md:space-y-6 order-2 lg:order-none lg:h-full lg:flex lg:flex-col">
+            <section className="hidden md:block shrink-0">
+              <LogInput onLog={addEntry} apiKey={settings.geminiApiKey} model={settings.geminiModel} />
+            </section>
 
-          <section>
-            <div className="flex items-end justify-between mb-3 px-1">
-              <div>
-                <p className="coastal-kicker mb-1">A little of everything</p>
-                <h2 className="text-xl sm:text-2xl font-semibold">Today's nourishment</h2>
-              </div>
-              <span className="text-xs font-semibold rounded-full px-3 py-1.5" style={{ color: 'var(--ink-blue)', background: '#E8EEDB' }}>
-                {todaysEntries.length} {todaysEntries.length === 1 ? 'entry' : 'entries'}
-              </span>
-            </div>
-            <MacroDashboard entries={todaysEntries} targets={settings.targets} />
-          </section>
+            <section className="lg:flex lg:flex-col lg:flex-1 lg:min-h-0">
+              <SectionTitle
+                kicker="Fresh from the kitchen"
+                title="Today's table"
+                badge={`${todaysEntries.length} ${todaysEntries.length === 1 ? 'entry' : 'entries'}`}
+                aside="Tap a calorie to edit"
+              />
+              <TodaysLog
+                entries={todaysEntries}
+                onDelete={deleteEntry}
+                onUpdate={updateEntry}
+              />
+            </section>
+          </div>
 
-          <section>
-            <div className="flex items-end justify-between mb-3 px-1">
-              <div>
-                <p className="coastal-kicker mb-1">Fresh from the kitchen</p>
-                <h2 className="text-xl sm:text-2xl font-semibold">Today's table</h2>
-              </div>
-              <span className="text-xs" style={{ color: 'var(--onSurfaceVariant)' }}>Edit any calorie value</span>
-            </div>
-            <TodaysLog
-              entries={todaysEntries}
-              onDelete={deleteEntry}
-              onUpdate={updateEntry}
-            />
-          </section>
+          {/* Nourishment column: macros + pantry notes */}
+          <aside className="min-w-0 space-y-5 md:space-y-6 order-1 lg:order-none lg:sticky lg:top-5">
+            <section>
+              <SectionTitle
+                kicker="A little of everything"
+                title="Today's nourishment"
+              />
+              <MacroDashboard entries={todaysEntries} targets={settings.targets} />
+            </section>
+            <KitchenNotes />
+          </aside>
         </main>
 
-        <footer className="mt-12 pt-6 text-center" style={{ borderTop: '1px solid var(--outlineVariant)' }}>
-          <div className="coastal-rule w-24 mx-auto mb-4" />
-          <p className="text-[10px] font-semibold uppercase tracking-[.18em]" style={{ color: 'var(--onSurfaceVariant)' }}>
+        <footer className="mt-6 pt-4 text-center shrink-0" style={{ borderTop: '1px solid var(--outlineVariant)' }}>
+          <p className="text-[10px] font-semibold uppercase tracking-[.18em] flex items-center justify-center gap-2" style={{ color: 'var(--onSurfaceVariant)' }}>
+            <Ornament className="w-2 h-2" style={{ color: '#A9C448' }} />
             Made by Howwid with ♥
+            <Ornament className="w-2 h-2" style={{ color: '#A9C448' }} />
           </p>
         </footer>
         </PullToRefresh>

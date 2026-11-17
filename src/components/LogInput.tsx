@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Send, Loader2, AlertCircle } from 'lucide-react';
 import { FoodEntry } from '../types';
 import { parseFoodWithAI } from '../lib/ai';
+import { CitrusIcon } from './decor';
 
 interface LogInputProps { onLog: (entry: FoodEntry) => void; apiKey: string; model: string; }
 
@@ -23,12 +24,14 @@ export const LogInput = ({ onLog, apiKey, model }: LogInputProps) => {
   };
 
   return (
-    <div className="w-full space-y-2">
+    <div className="w-full space-y-1.5">
       <form onSubmit={handleSubmit} className="relative w-full">
-        <div className="flex items-center rounded-2xl p-1.5 shadow-sm transition-shadow focus-within:shadow-md" style={{ background: 'var(--card)', border: '1px solid var(--outlineVariant)' }}>
-          <div className="pl-3 pr-1 text-xl" style={{ color: 'var(--accent)' }}>✳</div>
-          <input type="text" value={text} onChange={e => setText(e.target.value)} placeholder="What did you eat? Try “2 eggs and toast”" disabled={isLoading} className="flex-1 min-w-0 bg-transparent border-none outline-none py-3 px-3 text-sm sm:text-base disabled:opacity-50" style={{ color: 'var(--onSurface)' }} />
-          <button type="submit" disabled={isLoading || !text.trim()} className="mr-1 px-5 py-3 font-bold text-sm flex items-center gap-2 disabled:opacity-50 rounded-xl shadow-sm" style={{ background: '#243F83', color: '#FFFDF7' }}>
+        <div className="flex items-center rounded-xl p-1.5 shadow-sm transition-shadow focus-within:shadow-md" style={{ background: 'var(--card)', border: '1px solid var(--outlineVariant)' }}>
+          <div className="pl-2.5 pr-1 flex items-center shrink-0" style={{ color: 'var(--accent)' }}>
+            <CitrusIcon className="w-5 h-5" />
+          </div>
+          <input type="text" value={text} onChange={e => setText(e.target.value)} placeholder="What did you eat? Try “2 eggs and toast”" disabled={isLoading} className="flex-1 min-w-0 bg-transparent border-none outline-none py-2.5 px-2.5 text-sm sm:text-base disabled:opacity-50" style={{ color: 'var(--onSurface)' }} />
+          <button type="submit" disabled={isLoading || !text.trim()} className="mr-1 px-4 py-2.5 font-bold text-sm flex items-center gap-2 disabled:opacity-50 rounded-lg shadow-sm" style={{ background: '#243F83', color: '#FFFDF7' }}>
             {isLoading ? <><Loader2 className="w-4 h-4 animate-spin" /><span className="hidden sm:inline">Estimating</span></> : <><span className="hidden sm:inline">Add to log</span><Send className="w-4 h-4 sm:hidden" /></>}
           </button>
         </div>

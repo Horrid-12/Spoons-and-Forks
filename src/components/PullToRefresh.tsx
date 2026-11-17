@@ -55,6 +55,7 @@ export const PullToRefresh = ({ onRefresh, children }: PullToRefreshProps) => {
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      className="flex flex-1 flex-col"
     >
       <div
         className="flex items-center justify-center overflow-hidden transition-all duration-300"

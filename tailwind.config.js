@@ -7,8 +7,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['Inter', 'ui-monospace', 'monospace'],
+        sans: ['Epilogue', 'system-ui', 'sans-serif'],
+        mono: ['Epilogue', 'ui-monospace', 'monospace'],
       },
     },
   },

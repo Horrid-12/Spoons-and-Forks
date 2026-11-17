@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Epilogue:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -53,7 +53,7 @@
   body {
     background-color: var(--paper);
     color: var(--onBackground);
-    font-family: 'DM Sans', system-ui, sans-serif;
+    font-family: 'Epilogue', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv11", "ss01";
@@ -75,10 +75,10 @@
   min-height: 100vh;
   background-color: var(--bg, var(--paper));
   background-image:
-    radial-gradient(ellipse at 12% 5%, rgba(169,196,72,.13), transparent 32%),
-    radial-gradient(ellipse at 92% 28%, rgba(36,63,131,.055), transparent 34%),
+    radial-gradient(rgba(37, 52, 91, .05) 1px, transparent 1.2px),
     repeating-linear-gradient(0deg, transparent 0 5px, rgba(85,73,49,.018) 6px);
-  font-family: 'DM Sans', system-ui, sans-serif;
+  background-size: 22px 22px, auto;
+  font-family: 'Epilogue', system-ui, sans-serif;
 }
 
 .coastal-app::before {
@@ -96,29 +96,21 @@
 
 .coastal-app h1, .coastal-app h2, .coastal-app h3,
 .coastal-app .display-font {
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: 'Epilogue', system-ui, sans-serif;
 }
 
 .coastal-card {
   background: var(--card, #FFFDF7);
   border: 1px solid var(--outlineVariant, #D7CEB9);
-  border-radius: 1.35rem;
-  box-shadow: 0 5px 18px rgba(52, 54, 57, .055), 0 1px 2px rgba(52, 54, 57, .04);
+  border-radius: 1rem;
+  box-shadow: 0 3px 12px rgba(52, 54, 57, .05), 0 1px 2px rgba(52, 54, 57, .04);
 }
 
 .coastal-kicker {
   color: var(--onSurfaceVariant, #6F7890);
-  font: 700 10px/1.2 'DM Sans', sans-serif;
+  font: 700 10px/1.2 'Epilogue', sans-serif;
   letter-spacing: .16em;
   text-transform: uppercase;
-}
-
-.coastal-rule {
-  height: 5px;
-  border: 0;
-  background: repeating-linear-gradient(90deg, #243F83 0 18px, #FFFDF7 18px 36px);
-  opacity: .8;
-  border-radius: 99px;
 }
 
 /* A calm, hand-printed coastal character without sacrificing legibility. */

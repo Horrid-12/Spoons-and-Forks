@@ -7,6 +7,7 @@ import { GEMINI_MODELS } from '../lib/ai';
 import { isAndroid } from '../lib/platform';
 import { supabase } from '../lib/supabaseClient';
 import type { User as UserType } from '@supabase/supabase-js';
+import { Ornament, CitrusIcon } from './decor';
 
 interface SettingsModalProps {
   isOpen: boolean; onClose: () => void; settings: Settings;
@@ -67,12 +68,12 @@ export const SettingsModal = ({ isOpen, onClose, settings, onSave, syncStatus, s
   const inputStyle = { backgroundColor: 'var(--surfaceContainerLowest)', border: '1px solid var(--outlineVariant)', color: 'var(--onSurface)' };
 
   return (
-    <AnimatedModal isOpen={isOpen} className="max-w-md max-h-[90vh] overflow-y-auto rounded-3xl" style={{ backgroundColor: 'var(--card)', border: '1px solid var(--outlineVariant)', boxShadow: '0 20px 60px rgba(30,40,65,.18)' }}>
+    <AnimatedModal isOpen={isOpen} className="max-w-md max-h-[90vh] overflow-y-auto rounded-2xl" style={{ backgroundColor: 'var(--card)', border: '1px solid var(--outlineVariant)', boxShadow: '0 20px 60px rgba(30,40,65,.18)' }}>
       <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'var(--outlineVariant)' }}>
-        <div><p className="coastal-kicker">Make yourself at home</p><h2 className="text-xl font-semibold">Settings</h2></div>
+        <div><p className="coastal-kicker mb-0.5 flex items-center gap-1.5"><CitrusIcon className="w-3 h-3" style={{ color: '#78952D' }} />Make yourself at home</p><h2 className="text-xl font-semibold">Settings</h2></div>
         <button onClick={onClose} style={{ color: 'var(--onSurfaceVariant)' }} aria-label="Close settings"><X className="w-4 h-4" /></button>
       </div>
-      <div className="p-6 space-y-6">
+      <div className="p-5 space-y-5">
         <section>
           <label className={sectionLabel} style={{ color: 'var(--onSurfaceVariant)' }}>Gemini API key</label>
           <div className="flex items-center gap-2">
