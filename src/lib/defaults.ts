@@ -7,14 +7,24 @@ export const DEFAULT_TARGETS: MacroTargets = {
   fat: 80,
 };
 
+export const COASTAL_PALETTE = {
+  accent: '#78952D',
+  blue: '#243F83',
+  background: '#F5F0E5',
+  card: '#FFFDF7',
+  ink: '#25345B',
+  muted: '#6F7890',
+  line: '#D7CEB9',
+};
+
 export const DEFAULT_SETTINGS: Settings = {
-  accentColor: '#5865F2',
-  bgColor: '#202225',
-  cardColor: '#2f3136',
-  fontColor: '#dcddde',
+  accentColor: COASTAL_PALETTE.accent,
+  bgColor: COASTAL_PALETTE.background,
+  cardColor: COASTAL_PALETTE.card,
+  fontColor: COASTAL_PALETTE.ink,
   dayStartHour: 5,
   geminiApiKey: '',
   geminiModel: 'gemini-3.5-flash',
   targets: DEFAULT_TARGETS,
-  useSystemTheme: true,
+  useSystemTheme: false,
 };

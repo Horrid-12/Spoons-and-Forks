@@ -15,8 +15,6 @@ import type { User } from '@supabase/supabase-js';
 import { PullToRefresh } from './components/PullToRefresh';
 import { DEFAULT_SETTINGS } from './lib/defaults';
 
-// M3 is imported dynamically on Android to avoid top-level await build-time errors on Desktop.
-
 function App() {
   const { settings, setSettings, loading: settingsLoading } = useSettings();
   const { entries, todaysEntries, addEntry, deleteEntry, updateEntry, reload, loading: logLoading } =
@@ -201,7 +199,7 @@ function App() {
   if (settingsLoading || logLoading || !settings || (isAndroid() && settings.useSystemTheme && !m3Ready)) {
     return (
       <div className="min-h-screen flex items-center justify-center font-mono text-[10px] uppercase tracking-widest" style={{ backgroundColor: 'var(--background, #202225)', color: 'var(--onBackground, #dcddde)' }}>
-        Why don't you order a sandwich while you wait? Oh, you did.
+        Getting the table ready...
       </div>
     );
   }
@@ -215,7 +213,6 @@ function App() {
   };
 
   const useM3 = isAndroid() && settings.useSystemTheme;
-
   const containerStyle = (useM3
     ? {}
     : {
@@ -223,13 +220,19 @@ function App() {
         '--bg': settings.bgColor,
         '--card': settings.cardColor,
         '--font': settings.fontColor,
-        '--surfaceContainerLowest': mixHex(settings.cardColor, '#000000', 0.55),
-        '--surfaceContainerLow': mixHex(settings.cardColor, '#000000', 0.7),
+        '--primary': '#243F83',
+        '--onPrimary': '#FFFDF7',
+        '--surfaceContainerLowest': mixHex(settings.cardColor, '#000000', 0.94),
+        '--surfaceContainerLow': mixHex(settings.cardColor, settings.bgColor, 0.13),
+        '--surfaceContainerHigh': mixHex(settings.cardColor, settings.bgColor, 0.25),
+        '--onSurface': settings.fontColor,
+        '--onSurfaceVariant': '#6F7890',
+        '--outlineVariant': '#D7CEB9',
       }) as CSSProperties;
 
   return (
-    <div style={{ ...containerStyle, backgroundColor: useM3 ? 'var(--background)' : 'var(--bg, var(--background))', color: useM3 ? 'var(--onBackground)' : 'var(--font, var(--onBackground))', fontFamily: "'Inter', system-ui, sans-serif" }} className="min-h-screen transition-colors duration-300">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-12 sm:pt-0 pb-12">
+    <div style={{ ...containerStyle, backgroundColor: useM3 ? 'var(--background)' : 'var(--bg, var(--background))', color: useM3 ? 'var(--onBackground)' : 'var(--font, var(--onBackground))', fontFamily: "'DM Sans', sans-serif" }} className="coastal-app min-h-screen transition-colors duration-300">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-8 sm:pt-5 pb-12">
         <PullToRefresh onRefresh={handleRefresh}>
         <Header
           onOpenSettings={() => setIsSettingsOpen(true)}
@@ -242,34 +245,31 @@ function App() {
           dayStartHour={settings.dayStartHour}
         />
 
-        {imported && (
-          <div className="mt-3 mb-3 text-[10px] font-mono uppercase tracking-widest" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
-            Imported legacy data from localStorage
-          </div>
-        )}
-
-        <main className="space-y-6 md:space-y-6 pb-28 md:pb-0">
+        <main className="space-y-7 md:space-y-8 pb-28 md:pb-0">
           <section className="hidden md:block">
             <LogInput onLog={addEntry} apiKey={settings.geminiApiKey} model={settings.geminiModel} />
           </section>
 
           <section>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[10px] uppercase tracking-widest font-mono font-bold" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
-                Macro Telemetry
-              </h2>
-              <span className="text-[10px] font-mono" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
-                {todaysEntries.length} entries
+            <div className="flex items-end justify-between mb-3 px-1">
+              <div>
+                <p className="coastal-kicker mb-1">A little of everything</p>
+                <h2 className="text-xl sm:text-2xl font-semibold">Today's nourishment</h2>
+              </div>
+              <span className="text-xs font-semibold rounded-full px-3 py-1.5" style={{ color: 'var(--ink-blue)', background: '#E8EEDB' }}>
+                {todaysEntries.length} {todaysEntries.length === 1 ? 'entry' : 'entries'}
               </span>
             </div>
             <MacroDashboard entries={todaysEntries} targets={settings.targets} />
           </section>
 
           <section>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[10px] uppercase tracking-widest font-mono font-bold" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
-                Today's Log
-              </h2>
+            <div className="flex items-end justify-between mb-3 px-1">
+              <div>
+                <p className="coastal-kicker mb-1">Fresh from the kitchen</p>
+                <h2 className="text-xl sm:text-2xl font-semibold">Today's table</h2>
+              </div>
+              <span className="text-xs" style={{ color: 'var(--onSurfaceVariant)' }}>Edit any calorie value</span>
             </div>
             <TodaysLog
               entries={todaysEntries}
@@ -279,8 +279,9 @@ function App() {
           </section>
         </main>
 
-        <footer className="mt-12 pt-6 border-t text-center" style={{ borderColor: 'var(--outlineVariant, #44464E)' }}>
-          <p className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'var(--onSurfaceVariant, #8e9297)' }}>
+        <footer className="mt-12 pt-6 text-center" style={{ borderTop: '1px solid var(--outlineVariant)' }}>
+          <div className="coastal-rule w-24 mx-auto mb-4" />
+          <p className="text-[10px] font-semibold uppercase tracking-[.18em]" style={{ color: 'var(--onSurfaceVariant)' }}>
             Made by Howwid with ♥
           </p>
         </footer>
@@ -313,7 +314,7 @@ function App() {
         onAuthChange={handleAuthChange}
       />
 
-      <div className="md:hidden fixed bottom-0 inset-x-0 z-40 backdrop-blur-sm border-t p-3" style={{ backgroundColor: 'color-mix(in srgb, var(--bg, var(--background)) 95%, transparent)', borderColor: 'var(--outlineVariant, #44464E)' }}>
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-40 p-3" style={{ backgroundColor: 'color-mix(in srgb, var(--bg, var(--background)) 96%, transparent)', borderTop: '1px solid var(--outlineVariant)' }}>
         <LogInput onLog={addEntry} apiKey={settings.geminiApiKey} model={settings.geminiModel} />
       </div>
     </div>

@@ -1,118 +1,147 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --primary: #5865F2;
-  --onPrimary: #FFFFFF;
-  --primaryContainer: #5865F2;
-  --onPrimaryContainer: #FFFFFF;
-  --secondary: #2f3136;
-  --onSecondary: #dcddde;
-  --secondaryContainer: #2f3136;
-  --onSecondaryContainer: #dcddde;
-  --tertiary: #5865F2;
-  --onTertiary: #FFFFFF;
-  --tertiaryContainer: #5865F2;
-  --onTertiaryContainer: #FFFFFF;
-  --background: #202225;
-  --onBackground: #dcddde;
-  --surface: #2f3136;
-  --onSurface: #dcddde;
-  --surfaceVariant: #2f3136;
-  --onSurfaceVariant: #dcddde;
-  --surfaceTint: #5865F2;
-  --inverseSurface: #dcddde;
-  --inverseOnSurface: #202225;
-  --error: #F2B8B5;
-  --onError: #601410;
-  --errorContainer: #8C1D18;
-  --onErrorContainer: #F9DEDC;
-  --outline: #8E9099;
-  --outlineVariant: #44464E;
-  --scrim: #000000;
-  --surfaceBright: #373940;
-  --surfaceDim: #202225;
-  --surfaceContainer: #2f3136;
-  --surfaceContainerHigh: #272A31;
-  --surfaceContainerHighest: #32353C;
-  --surfaceContainerLow: #1B1B1D;
-  --surfaceContainerLowest: #0C0E14;
+  --accent: #78952D;
+  --primary: #243F83;
+  --onPrimary: #FFFDF7;
+  --primaryContainer: #E5EAF5;
+  --onPrimaryContainer: #243F83;
+  --secondary: #78952D;
+  --onSecondary: #FFFDF7;
+  --secondaryContainer: #E8EEDB;
+  --onSecondaryContainer: #43551E;
+  --tertiary: #A9B94D;
+  --onTertiary: #25345B;
+  --tertiaryContainer: #F0F1D9;
+  --onTertiaryContainer: #43551E;
+  --background: #F5F0E5;
+  --onBackground: #25345B;
+  --surface: #FFFDF7;
+  --onSurface: #25345B;
+  --surfaceVariant: #EDE7D9;
+  --onSurfaceVariant: #6F7890;
+  --surfaceTint: #243F83;
+  --inverseSurface: #25345B;
+  --inverseOnSurface: #F5F0E5;
+  --error: #A9473E;
+  --onError: #FFFDF7;
+  --errorContainer: #F4DFD9;
+  --onErrorContainer: #79352F;
+  --outline: #9EA5B0;
+  --outlineVariant: #D7CEB9;
+  --scrim: #25345B;
+  --surfaceBright: #FFFDF7;
+  --surfaceDim: #EAE3D4;
+  --surfaceContainer: #F0EADD;
+  --surfaceContainerHigh: #EAE3D4;
+  --surfaceContainerHighest: #E4DDCE;
+  --surfaceContainerLow: #F7F3EA;
+  --surfaceContainerLowest: #FFFDF7;
+  --paper: #F5F0E5;
+  --ink-blue: #243F83;
+  --citrus: #A9C448;
+  --sea-green: #78952D;
+  --paper-line: rgba(36, 63, 131, 0.13);
 }
 
 @layer base {
-  html {
-    color-scheme: dark;
-  }
+  html { color-scheme: light; }
   body {
-    background-color: var(--background, #202225);
-    color: var(--onBackground, #dcddde);
-    font-family: 'Inter', system-ui, sans-serif;
+    background-color: var(--paper);
+    color: var(--onBackground);
+    font-family: 'DM Sans', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv11", "ss01";
   }
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    @apply bg-zinc-800 rounded-full;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-zinc-700;
-  }
+  ::selection { background: #DDE7B3; color: #243F83; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #C9C0AE; border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: #A9A08E; }
 }
+
+#root { min-height: 100vh; }
 
 .input-accent-bg {
-  background-color: color-mix(in srgb, var(--accent) 20%, var(--card));
+  background-color: color-mix(in srgb, var(--accent) 9%, var(--card));
 }
 
-/* --- Animations --- */
+.coastal-app {
+  min-height: 100vh;
+  background-color: var(--bg, var(--paper));
+  background-image:
+    radial-gradient(ellipse at 12% 5%, rgba(169,196,72,.13), transparent 32%),
+    radial-gradient(ellipse at 92% 28%, rgba(36,63,131,.055), transparent 34%),
+    repeating-linear-gradient(0deg, transparent 0 5px, rgba(85,73,49,.018) 6px);
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+.coastal-app::before {
+  content: "";
+  position: fixed;
+  z-index: 60;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+  pointer-events: none;
+  background: repeating-conic-gradient(#243F83 0% 25%, #FFFDF7 0% 50%) 0 0 / 16px 16px;
+  border-bottom: 1px solid rgba(36, 63, 131, .12);
+}
+
+.coastal-app h1, .coastal-app h2, .coastal-app h3,
+.coastal-app .display-font {
+  font-family: 'Fraunces', Georgia, serif;
+}
+
+.coastal-card {
+  background: var(--card, #FFFDF7);
+  border: 1px solid var(--outlineVariant, #D7CEB9);
+  border-radius: 1.35rem;
+  box-shadow: 0 5px 18px rgba(52, 54, 57, .055), 0 1px 2px rgba(52, 54, 57, .04);
+}
+
+.coastal-kicker {
+  color: var(--onSurfaceVariant, #6F7890);
+  font: 700 10px/1.2 'DM Sans', sans-serif;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.coastal-rule {
+  height: 5px;
+  border: 0;
+  background: repeating-linear-gradient(90deg, #243F83 0 18px, #FFFDF7 18px 36px);
+  opacity: .8;
+  border-radius: 99px;
+}
+
+/* A calm, hand-printed coastal character without sacrificing legibility. */
+.coastal-app button { transition: transform .16s ease, opacity .16s ease, background-color .16s ease; }
+.coastal-app button:active { transform: translateY(1px); }
+.coastal-app input, .coastal-app textarea, .coastal-app select { accent-color: var(--accent, #78952D); }
 
 @keyframes modal-enter {
-  from { opacity: 0; transform: translateY(15px) scale(0.98); }
+  from { opacity: 0; transform: translateY(15px) scale(.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-
 @keyframes modal-exit {
   from { opacity: 1; transform: translateY(0) scale(1); }
-  to { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 0; transform: translateY(10px) scale(.98); }
 }
-
-@keyframes backdrop-enter {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes backdrop-exit {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
-.animate-modal-enter { 
-  animation: modal-enter 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; 
-}
-.animate-modal-exit { 
-  animation: modal-exit 0.2s cubic-bezier(0.4, 0, 1, 1) forwards; 
-}
-.animate-backdrop-enter { 
-  animation: backdrop-enter 0.3s ease-out forwards; 
-}
-.animate-backdrop-exit { 
-  animation: backdrop-exit 0.2s ease-in forwards; 
-}
-
+@keyframes backdrop-enter { from { opacity: 0; } to { opacity: 1; } }
+@keyframes backdrop-exit { from { opacity: 1; } to { opacity: 0; } }
+.animate-modal-enter { animation: modal-enter .3s cubic-bezier(.16,1,.3,1) forwards; }
+.animate-modal-exit { animation: modal-exit .2s cubic-bezier(.4,0,1,1) forwards; }
+.animate-backdrop-enter { animation: backdrop-enter .3s ease-out forwards; }
+.animate-backdrop-exit { animation: backdrop-exit .2s ease-in forwards; }
 @keyframes fade-in-up {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
-.animate-fade-in-up {
-  animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  opacity: 0;
-}
-
+.animate-fade-in-up { animation: fade-in-up .4s cubic-bezier(.16,1,.3,1) forwards; opacity: 0; }

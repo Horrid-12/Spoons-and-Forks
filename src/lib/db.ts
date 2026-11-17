@@ -43,15 +43,29 @@ async function migrate(db: Database): Promise<void> {
 }
 
 const SETTINGS_DEFAULTS: Settings = {
-  accentColor: '#5865F2',
-  bgColor: '#202225',
-  cardColor: '#2f3136',
-  fontColor: '#dcddde',
+  accentColor: '#78952D',
+  bgColor: '#F5F0E5',
+  cardColor: '#FFFDF7',
+  fontColor: '#25345B',
   dayStartHour: 5,
   geminiApiKey: '',
   geminiModel: 'gemini-3.5-flash',
   targets: { calories: 2500, protein: 150, carbs: 300, fat: 80 },
-  useSystemTheme: true,
+  useSystemTheme: false,
+};
+
+const LEGACY_PALETTE = {
+  accentColor: '#5865F2',
+  bgColor: '#202225',
+  cardColor: '#2f3136',
+  fontColor: '#dcddde',
+};
+
+const COASTAL_PALETTE = {
+  accentColor: '#78952D',
+  bgColor: '#F5F0E5',
+  cardColor: '#FFFDF7',
+  fontColor: '#25345B',
 };
 
 export async function loadSettings(): Promise<Settings> {
@@ -68,11 +82,19 @@ export async function loadSettings(): Promise<Settings> {
     for (const { key, value } of rows) {
       try { obj[key] = JSON.parse(value); } catch {}
     }
-    return {
+    const legacyPaletteIsUntouched = Object.entries(LEGACY_PALETTE).every(
+      ([key, value]) => obj[key] === value
+    );
+    const resolved = {
       ...SETTINGS_DEFAULTS,
       ...obj,
+      ...(legacyPaletteIsUntouched ? COASTAL_PALETTE : {}),
       targets: { ...SETTINGS_DEFAULTS.targets, ...(obj.targets as Partial<MacroTargets> | undefined) },
     } as Settings;
+
+    // Move users on the untouched original palette to the new look, but retain custom palettes.
+    if (legacyPaletteIsUntouched) await saveSettingsRaw(db, resolved);
+    return resolved;
   });
 }
 
@@ -85,6 +107,7 @@ async function saveSettingsRaw(db: Database, s: Settings): Promise<void> {
     ['dayStartHour', s.dayStartHour],
     ['geminiApiKey', s.geminiApiKey],
     ['targets', s.targets],
+    ['useSystemTheme', s.useSystemTheme],
   ];
   for (const [k, v] of pairs) {
     await db.execute(
