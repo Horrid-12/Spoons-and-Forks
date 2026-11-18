@@ -15,6 +15,7 @@ import type { User } from '@supabase/supabase-js';
 import { PullToRefresh } from './components/PullToRefresh';
 import { SectionTitle, Ornament } from './components/decor';
 import { KitchenNotes } from './components/KitchenNotes';
+import { StatisticsView } from './components/StatisticsView';
 import { DEFAULT_SETTINGS } from './lib/defaults';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [view, setView] = useState<'dashboard' | 'statistics'>('dashboard');
   const [imported, setImported] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [m3Ready, setM3Ready] = useState(false);
@@ -245,8 +247,12 @@ function App() {
           updateVersion={updateVersion}
           user={user}
           dayStartHour={settings.dayStartHour}
+          view={view}
+          onOpenStatistics={() => setView('statistics')}
+          onGoDashboard={() => setView('dashboard')}
         />
 
+        {view === 'dashboard' ? (
         <main className="mt-5 flex-1 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_21rem] gap-5 md:gap-6 lg:gap-7 items-start pb-4 md:pb-2">
           {/* Journal column: logging + today's table */}
           <div className="min-w-0 space-y-5 md:space-y-6 order-2 lg:order-none lg:h-full lg:flex lg:flex-col">
@@ -281,6 +287,16 @@ function App() {
             <KitchenNotes />
           </aside>
         </main>
+        ) : (
+          <main className="mt-5 flex-1 pb-6">
+            <StatisticsView
+              entries={entries}
+              targets={settings.targets}
+              dayStartHour={settings.dayStartHour}
+              onBack={() => setView('dashboard')}
+            />
+          </main>
+        )}
 
         <footer className="mt-6 pt-4 text-center shrink-0" style={{ borderTop: '1px solid var(--outlineVariant)' }}>
           <p className="text-[10px] font-semibold uppercase tracking-[.18em] flex items-center justify-center gap-2" style={{ color: 'var(--onSurfaceVariant)' }}>
@@ -318,9 +334,11 @@ function App() {
         onAuthChange={handleAuthChange}
       />
 
+      {view === 'dashboard' && (
       <div className="md:hidden fixed bottom-0 inset-x-0 z-40 p-3" style={{ backgroundColor: 'color-mix(in srgb, var(--bg, var(--background)) 96%, transparent)', borderTop: '1px solid var(--outlineVariant)' }}>
         <LogInput onLog={addEntry} apiKey={settings.geminiApiKey} model={settings.geminiModel} />
       </div>
+      )}
     </div>
   );
 }

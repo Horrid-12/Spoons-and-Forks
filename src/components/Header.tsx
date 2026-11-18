@@ -1,4 +1,4 @@
-import { Settings as SettingsIcon, Utensils, History, User, LogOut } from 'lucide-react';
+import { Settings as SettingsIcon, Utensils, History, User, LogOut, BarChart3, NotebookPen } from 'lucide-react';
 import { getReadableDay, getLogicalDayString } from '../lib/dayLogic';
 import { supabase } from '../lib/supabaseClient';
 import type { User as UserType } from '@supabase/supabase-js';
@@ -13,9 +13,12 @@ interface HeaderProps {
   updateVersion: string;
   user: UserType | null;
   dayStartHour: number;
+  view: 'dashboard' | 'statistics';
+  onOpenStatistics: () => void;
+  onGoDashboard: () => void;
 }
 
-export const Header = ({ onOpenSettings, onOpenHistory, onOpenAuth, onUpdate, updateAvailable, updateVersion, user, dayStartHour }: HeaderProps) => {
+export const Header = ({ onOpenSettings, onOpenHistory, onOpenAuth, onUpdate, updateAvailable, updateVersion, user, dayStartHour, view, onOpenStatistics, onGoDashboard }: HeaderProps) => {
   const todayString = getLogicalDayString(Date.now(), dayStartHour);
   const handleSignOut = async () => {
     if (!window.confirm('Sign out?')) return;
@@ -50,10 +53,14 @@ export const Header = ({ onOpenSettings, onOpenHistory, onOpenAuth, onUpdate, up
             <span className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--onSurfaceVariant)' }}>Cycle starts {String(dayStartHour).padStart(2, '0')}:00</span>
           </div>
           {[
-            { label: 'History', onClick: onOpenHistory, Icon: History },
-            { label: 'Settings', onClick: onOpenSettings, Icon: SettingsIcon },
-          ].map(({label, onClick, Icon}) => (
-            <button key={label} onClick={onClick} aria-label={label} title={label} className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ color: '#243F83', background: '#FFFDF7', border: '1px solid var(--outlineVariant)' }}>
+            { label: 'Journal', onClick: onGoDashboard, Icon: NotebookPen, active: view === 'dashboard' },
+            { label: 'Statistics', onClick: onOpenStatistics, Icon: BarChart3, active: view === 'statistics' },
+            { label: 'History', onClick: onOpenHistory, Icon: History, active: false },
+            { label: 'Settings', onClick: onOpenSettings, Icon: SettingsIcon, active: false },
+          ].map(({label, onClick, Icon, active}) => (
+            <button key={label} onClick={onClick} aria-label={label} title={label} aria-current={active ? 'page' : undefined}
+              className="w-9 h-9 rounded-lg flex items-center justify-center"
+              style={{ color: active ? '#FFFDF7' : '#243F83', background: active ? '#243F83' : '#FFFDF7', border: `1px solid ${active ? '#243F83' : 'var(--outlineVariant)'}` }}>
               <Icon className="w-4 h-4" />
             </button>
           ))}
