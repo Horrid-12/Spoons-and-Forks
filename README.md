@@ -6,7 +6,7 @@
 
 <h1 align="center">Spoons and Forks</h1>
 
-<p align="center">Local-first calorie and macro tracking powered by Tauri 2 and Google Gemini AI</p>
+<p align="center">Local-first calorie and macro tracking powered by Tauri 2, Groq, and Google Gemini</p>
 
 <p align="center">
   <a href="https://github.com/Horrid-12/Spoons-and-Forks/releases/latest"><img alt="Latest Release" src="https://img.shields.io/github/v/release/Horrid-12/Spoons-and-Forks?style=flat-square&amp;logo=github&amp;logoColor=white"></a>
@@ -37,7 +37,17 @@
 
 - Parse natural language meal descriptions into structured macros
 - Validate edibility before logging entries
-- Support configurable Gemini models
+- Use Groq as the fast primary provider, with automatic Gemini fallback
+- Choose from configurable Groq and Gemini models in Settings
+
+### <img src="./docs/assets/icons/history.svg" width="16" alt=""> Statistics & Insights
+
+- Dedicated analytics view with 7-day, 30-day, 90-day, and all-time filters
+- Daily calorie chart with a target line, average intake, highest/lowest day, and target-hit rate
+- Protein, carbohydrate, and fat trends, macro target completion, and macro distribution
+- Activity heatmap, current/longest logging streaks, active days, and entries per day
+- Most-logged descriptions, time-of-day distribution, and weekday versus weekend averages
+- Averages count logged days only. Unlogged days and today's in-progress day are missing data, never zero-calorie days.
 
 ### <img src="./docs/assets/icons/palette.svg" width="16" alt=""> Custom Theming
 
@@ -47,7 +57,8 @@
 ### <img src="./docs/assets/icons/database.svg" width="16" alt=""> Local-First Storage
 
 - SQLite backend via Tauri SQL plugin for offline access
-- Zero external data sharing by default
+- No account required; entries stay on your device
+- Meal descriptions are sent only to your configured AI provider when you log an entry
 
 ### <img src="./docs/assets/icons/cloud.svg" width="16" alt=""> Sync and Cloud Backup
 
@@ -69,7 +80,7 @@ Spoons and Forks uses a modern Tauri 2 architecture with a React + TypeScript fr
 | Runtime | <img alt="Tauri" src="https://img.shields.io/badge/Tauri-2.0.0-FFC131?style=flat-square&amp;logo=tauri&amp;logoColor=black"> <img alt="Rust" src="https://img.shields.io/badge/Rust-1.92.0-000000?style=flat-square&amp;logo=rust&amp;logoColor=white"> |
 | Database | <img alt="SQLite" src="https://img.shields.io/badge/SQLite-Tauri%20SQL%20Plugin-003B57?style=flat-square&amp;logo=sqlite&amp;logoColor=white"> |
 | Backend Services | <img alt="Supabase" src="https://img.shields.io/badge/Supabase-2.108.0-3FCF8E?style=flat-square&amp;logo=supabase&amp;logoColor=black"> |
-| AI | <img alt="Google Gemini" src="https://img.shields.io/badge/Google%20Gemini-Developer%20API-4285F4?style=flat-square&amp;logo=google&amp;logoColor=white"> |
+| AI | Groq API + Google Gemini (automatic failover) |
 
 ## <img src="./docs/assets/icons/play.svg" width="18" alt=""> Get Started
 
@@ -81,11 +92,11 @@ Spoons and Forks uses a modern Tauri 2 architecture with a React + TypeScript fr
 
 ### Clone and Install
 
-`ash
+```bash
 git clone https://github.com/Horrid-12/Spoons-and-Forks.git
 cd spoons-and-forks
 npm install
-`
+```
 
 ### Environment Configuration
 
@@ -96,33 +107,42 @@ Create .env from .env.example with the following variables:
 | VITE_SUPABASE_URL | Yes | Supabase project URL |
 | VITE_SUPABASE_KEY | Yes | Supabase anon/public key |
 
+### AI Provider Setup
+
+Meal parsing is configured inside the app under Settings:
+
+- **Groq (recommended)** — create a free key at [console.groq.com/keys](https://console.groq.com/keys). The default model is Llama 3.1 8B Instant, with Llama 3.3 70B and GPT-OSS 120B available.
+- **Gemini (fallback)** — add an `AIza...` key from [Google AI Studio](https://aistudio.google.com/apikey). It is used automatically when Groq is unavailable.
+- Both keys can be stored at once. A provider's key is sent only to that provider.
+- If you sign in to Supabase, both keys are included in the synced settings payload.
+
 ### Run Commands
 
 - Run Desktop App (React + Tauri Window):
-  `ash
+  ```bash
   npm run tauri dev
-  `
+  ```
 - Run Android Dev (Emulator/Device):
-  `ash
+  ```bash
   npx tauri android dev
-  `
+  ```
 - Check TypeScript Errors:
-  `ash
+  ```bash
   npx tsc --noEmit
-  `
+  ```
 - Build Desktop Installers:
-  `ash
+  ```bash
   npm run build && npm run tauri build
-  `
+  ```
 - Build Android APK/AAB:
-  `ash
+  ```bash
   npx tauri android build
-  `
+  ```
 
 <details>
 <summary>Windows PowerShell</summary>
 
-`powershell
+```powershell
 # Clone
 git clone https://github.com/Horrid-12/Spoons-and-Forks.git
 cd spoons-and-forks
@@ -133,7 +153,7 @@ npm run tauri dev
 
 # Build
 npm run build; npm run tauri build
-`
+```
 </details>
 
 ## <img src="./docs/assets/icons/download.svg" width="18" alt=""> Installation
