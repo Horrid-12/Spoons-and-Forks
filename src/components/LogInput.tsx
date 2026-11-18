@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Send, Loader2, AlertCircle } from 'lucide-react';
 import { FoodEntry } from '../types';
-import { parseFoodWithAI } from '../lib/ai';
+import { parseFoodWithAI, type StoredAiSettings } from '../lib/ai';
 import { CitrusIcon } from './decor';
 
-interface LogInputProps { onLog: (entry: FoodEntry) => void; apiKey: string; model: string; }
+interface LogInputProps { onLog: (entry: FoodEntry) => void; ai: StoredAiSettings }
 
-export const LogInput = ({ onLog, apiKey, model }: LogInputProps) => {
+export const LogInput = ({ onLog, ai }: LogInputProps) => {
   const [text, setText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -15,7 +15,7 @@ export const LogInput = ({ onLog, apiKey, model }: LogInputProps) => {
     if (!text.trim() || isLoading) return;
     setError(null); setIsLoading(true);
     try {
-      const macros = await parseFoodWithAI(text, apiKey, model);
+      const macros = await parseFoodWithAI(text, ai);
       const newEntry: FoodEntry = { id: crypto.randomUUID(), timestamp: Date.now(), description: text, ...macros };
       onLog(newEntry); setText('');
     } catch (err) {

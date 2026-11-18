@@ -15,12 +15,17 @@ export interface MacroTargets {
   fat: number;
 }
 
+export type AiProvider = 'groq' | 'gemini';
+
 export interface Settings {
   accentColor: string;
   bgColor: string;
   cardColor: string;
   fontColor: string;
   dayStartHour: number;
+  aiProvider: AiProvider;
+  groqApiKey: string;
+  groqModel: string;
   geminiApiKey: string;
   geminiModel: string;
   targets: MacroTargets;

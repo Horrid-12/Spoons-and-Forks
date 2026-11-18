@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { X, Eye, EyeOff, RefreshCw, User, LogOut, Download } from 'lucide-react';
 import { AnimatedModal } from './AnimatedModal';
 import { check } from '@tauri-apps/plugin-updater';
-import { Settings } from '../types';
-import { GEMINI_MODELS } from '../lib/ai';
+import { Settings, type AiProvider } from '../types';
+import { AI_PROVIDERS, GEMINI_MODELS, GROQ_MODELS, normalizeAiSettings } from '../lib/ai';
 import { isAndroid } from '../lib/platform';
 import { supabase } from '../lib/supabaseClient';
 import type { User as UserType } from '@supabase/supabase-js';
@@ -35,7 +35,7 @@ export const SettingsModal = ({ isOpen, onClose, settings, onSave, syncStatus, s
   const [signingOut, setSigningOut] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [updateError, setUpdateError] = useState('');
-  useEffect(() => { if (isOpen) setLocalSettings(settings); }, [isOpen, settings]);
+  useEffect(() => { if (isOpen) setLocalSettings({ ...settings, ...normalizeAiSettings(settings) }); }, [isOpen, settings]);
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape' && !saving) onClose(); };
     if (isOpen) window.addEventListener('keydown', handleKeyDown);
@@ -43,7 +43,7 @@ export const SettingsModal = ({ isOpen, onClose, settings, onSave, syncStatus, s
   }, [isOpen, onClose, saving]);
 
   const handleSave = async () => {
-    try { setSaveError(''); setSaving(true); await onSave(localSettings); onClose(); }
+    try { setSaveError(''); setSaving(true); await onSave({ ...localSettings, ...normalizeAiSettings(localSettings) }); onClose(); }
     catch (e) { setSaveError(e instanceof Error ? e.message : 'Save failed'); }
     finally { setSaving(false); }
   };
@@ -64,6 +64,14 @@ export const SettingsModal = ({ isOpen, onClose, settings, onSave, syncStatus, s
   };
   const handleResetToDefaults = () => setLocalSettings({ ...localSettings, accentColor: '#78952D', bgColor: '#F5F0E5', cardColor: '#FFFDF7', fontColor: '#25345B' });
 
+  const fallbackProvider: AiProvider = localSettings.aiProvider === 'groq' ? 'gemini' : 'groq';
+  const setKey = (provider: AiProvider, value: string) => setLocalSettings(
+    provider === 'groq' ? { ...localSettings, groqApiKey: value } : { ...localSettings, geminiApiKey: value },
+  );
+  const setModel = (id: string) => setLocalSettings(
+    localSettings.aiProvider === 'groq' ? { ...localSettings, groqModel: id } : { ...localSettings, geminiModel: id },
+  );
+
   const sectionLabel = "block text-[10px] uppercase tracking-[.16em] font-bold mb-3";
   const inputStyle = { backgroundColor: 'var(--surfaceContainerLowest)', border: '1px solid var(--outlineVariant)', color: 'var(--onSurface)' };
 
@@ -75,17 +83,47 @@ export const SettingsModal = ({ isOpen, onClose, settings, onSave, syncStatus, s
       </div>
       <div className="p-5 space-y-5">
         <section>
-          <label className={sectionLabel} style={{ color: 'var(--onSurfaceVariant)' }}>Gemini API key</label>
+          <label className={sectionLabel} style={{ color: 'var(--onSurfaceVariant)' }}>AI provider</label>
+          <div className="grid grid-cols-2 gap-2">
+            {(Object.keys(AI_PROVIDERS) as AiProvider[]).map(provider => {
+              const active = localSettings.aiProvider === provider;
+              return (
+                <button key={provider} onClick={() => setLocalSettings({ ...localSettings, aiProvider: provider })}
+                  className="rounded-xl px-3 py-2.5 text-left transition-all"
+                  style={{ background: active ? '#243F83' : 'color-mix(in srgb, var(--card), black 8%)', color: active ? '#FFFDF7' : 'var(--onSurface)', border: `1px solid ${active ? '#243F83' : 'var(--outlineVariant)'}` }}>
+                  <span className="block text-xs font-bold">{AI_PROVIDERS[provider]}</span>
+                  <span className="block text-[10px] opacity-75">{provider === 'groq' ? 'Fast · recommended' : 'Fallback'}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[10px] mt-1.5" style={{ color: 'var(--onSurfaceVariant)' }}>Groq is used first; Gemini takes over if it is unavailable.</p>
+        </section>
+        <section>
+          <label className={sectionLabel} style={{ color: 'var(--onSurfaceVariant)' }}>{AI_PROVIDERS[localSettings.aiProvider]} API key</label>
           <div className="flex items-center gap-2">
-            <input type={showKey ? 'text' : 'password'} value={localSettings.geminiApiKey} onChange={e => setLocalSettings({ ...localSettings, geminiApiKey: e.target.value })} placeholder="AIza..." className="flex-1 min-w-0 px-3 py-2.5 text-sm focus:outline-none rounded-xl" style={inputStyle} />
+            <input type={showKey ? 'text' : 'password'} value={localSettings.aiProvider === 'groq' ? localSettings.groqApiKey : localSettings.geminiApiKey}
+              onChange={e => setKey(localSettings.aiProvider, e.target.value)}
+              placeholder={localSettings.aiProvider === 'groq' ? 'gsk_...' : 'AIza...'} className="flex-1 min-w-0 px-3 py-2.5 text-sm focus:outline-none rounded-xl" style={inputStyle} />
             <button type="button" onClick={() => setShowKey(!showKey)} className="p-2 rounded-xl" style={{ color: 'var(--onSurfaceVariant)', border: '1px solid var(--outlineVariant)' }} aria-label={showKey ? 'Hide API key' : 'Show API key'}>{showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
+          </div>
+          <p className="text-[10px] mt-1.5" style={{ color: 'var(--onSurfaceVariant)' }}>Free key: {localSettings.aiProvider === 'groq' ? 'console.groq.com/keys' : 'aistudio.google.com/apikey'}</p>
+        </section>
+        <section>
+          <label className={sectionLabel} style={{ color: 'var(--onSurfaceVariant)' }}>{AI_PROVIDERS[localSettings.aiProvider]} model</label>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(localSettings.aiProvider === 'groq' ? GROQ_MODELS : GEMINI_MODELS).map(([id, label]) => {
+              const active = (localSettings.aiProvider === 'groq' ? localSettings.groqModel : localSettings.geminiModel) === id;
+              return <button key={id} onClick={() => setModel(id)} className="flex-1 py-2 px-2 rounded-xl text-xs transition-all" style={{ background: active ? '#243F83' : 'color-mix(in srgb, var(--card), black 8%)', color: active ? '#FFFDF7' : 'var(--onSurfaceVariant)', border: `1px solid ${active ? '#243F83' : 'var(--outlineVariant)'}` }}>{label}</button>;
+            })}
           </div>
         </section>
         <section>
-          <label className={sectionLabel} style={{ color: 'var(--onSurfaceVariant)' }}>AI model</label>
-          <div className="flex gap-2">
-            {Object.entries(GEMINI_MODELS).map(([id, label]) => <button key={id} onClick={() => setLocalSettings({ ...localSettings, geminiModel: id })} className="flex-1 py-2 px-2 rounded-xl text-xs transition-all" style={{ background: localSettings.geminiModel === id ? '#243F83' : 'color-mix(in srgb, var(--card), black 8%)', color: localSettings.geminiModel === id ? '#FFFDF7' : 'var(--onSurfaceVariant)', border: `1px solid ${localSettings.geminiModel === id ? '#243F83' : 'var(--outlineVariant)'}` }}>{label}</button>)}
-          </div>
+          <label className={sectionLabel} style={{ color: 'var(--onSurfaceVariant)' }}>Fallback key · {AI_PROVIDERS[fallbackProvider]}</label>
+          <input type={showKey ? 'text' : 'password'} value={fallbackProvider === 'groq' ? localSettings.groqApiKey : localSettings.geminiApiKey}
+            onChange={e => setKey(fallbackProvider, e.target.value)} placeholder={fallbackProvider === 'groq' ? 'gsk_...' : 'AIza...'}
+            className="w-full px-3 py-2.5 text-sm focus:outline-none rounded-xl" style={inputStyle} />
+          <p className="text-[10px] mt-1.5" style={{ color: 'var(--onSurfaceVariant)' }}>Optional, but recommended. Used only when the primary provider fails.</p>
         </section>
         <section>
           <label className={sectionLabel} style={{ color: 'var(--onSurfaceVariant)' }}>Cloud sync</label>

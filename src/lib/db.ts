@@ -1,6 +1,13 @@
 import Database from '@tauri-apps/plugin-sql';
 import type { FoodEntry, Settings, MacroTargets } from '../types';
 import { supabase } from './supabaseClient';
+import {
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_GROQ_MODEL,
+  normalizeAiSettings,
+  normalizeGeminiModel,
+  normalizeGroqModel,
+} from './ai';
 
 const DB_URL = 'sqlite:spoons-and-forks.db';
 
@@ -48,8 +55,11 @@ const SETTINGS_DEFAULTS: Settings = {
   cardColor: '#FFFDF7',
   fontColor: '#25345B',
   dayStartHour: 5,
+  aiProvider: 'groq',
+  groqApiKey: '',
+  groqModel: DEFAULT_GROQ_MODEL,
   geminiApiKey: '',
-  geminiModel: 'gemini-3.5-flash',
+  geminiModel: DEFAULT_GEMINI_MODEL,
   targets: { calories: 2500, protein: 150, carbs: 300, fat: 80 },
   useSystemTheme: false,
 };
@@ -90,6 +100,7 @@ export async function loadSettings(): Promise<Settings> {
       ...obj,
       ...(legacyPaletteIsUntouched ? COASTAL_PALETTE : {}),
       targets: { ...SETTINGS_DEFAULTS.targets, ...(obj.targets as Partial<MacroTargets> | undefined) },
+      ...normalizeAiSettings(obj as Partial<Settings>),
     } as Settings;
 
     // Move users on the untouched original palette to the new look, but retain custom palettes.
@@ -105,7 +116,11 @@ async function saveSettingsRaw(db: Database, s: Settings): Promise<void> {
     ['cardColor', s.cardColor],
     ['fontColor', s.fontColor],
     ['dayStartHour', s.dayStartHour],
+    ['aiProvider', s.aiProvider === 'gemini' ? 'gemini' : 'groq'],
+    ['groqApiKey', s.groqApiKey],
+    ['groqModel', normalizeGroqModel(s.groqModel)],
     ['geminiApiKey', s.geminiApiKey],
+    ['geminiModel', normalizeGeminiModel(s.geminiModel)],
     ['targets', s.targets],
     ['useSystemTheme', s.useSystemTheme],
   ];
@@ -355,7 +370,7 @@ export async function pushSettingsToSupabase(s: Settings): Promise<void> {
     const { accentColor, bgColor, cardColor, fontColor, ...syncable } = s;
     const { error } = await supabase.from('user_settings').upsert({
       user_id: user.id,
-      settings: syncable,
+      settings: { ...syncable, ...normalizeAiSettings(s) },
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' });
     if (error) console.warn('[sync] Settings push failed:', error.message, error.code);
@@ -380,7 +395,8 @@ export async function pullSettingsFromSupabase(): Promise<Settings | null> {
     }
     if (!data) return null;
     console.log('[sync] Settings pulled from Supabase:', data.settings);
-    return data.settings as Settings;
+    const remote = data.settings as Settings;
+    return { ...remote, ...normalizeAiSettings(remote) };
   } catch (e) {
     console.warn('[sync] Settings pull failed:', e);
     return null;

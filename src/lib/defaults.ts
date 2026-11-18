@@ -1,4 +1,5 @@
 import type { Settings, MacroTargets } from '../types';
+import { DEFAULT_GEMINI_MODEL, DEFAULT_GROQ_MODEL } from './ai';
 
 export const DEFAULT_TARGETS: MacroTargets = {
   calories: 2500,
@@ -23,8 +24,11 @@ export const DEFAULT_SETTINGS: Settings = {
   cardColor: COASTAL_PALETTE.card,
   fontColor: COASTAL_PALETTE.ink,
   dayStartHour: 5,
+  aiProvider: 'groq',
+  groqApiKey: '',
+  groqModel: DEFAULT_GROQ_MODEL,
   geminiApiKey: '',
-  geminiModel: 'gemini-3.5-flash',
+  geminiModel: DEFAULT_GEMINI_MODEL,
   targets: DEFAULT_TARGETS,
   useSystemTheme: false,
 };

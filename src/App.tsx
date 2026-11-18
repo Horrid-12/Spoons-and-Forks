@@ -9,6 +9,7 @@ import { AuthModal } from './components/AuthModal';
 import { useSettings } from './hooks/useSettings';
 import { useFoodLog } from './hooks/useFoodLog';
 import { importFromLocalStorage, pullFromSupabase, pushLocalToSupabase, testSupabaseConnection, pullSettingsFromSupabase } from './lib/db';
+import { normalizeAiSettings } from './lib/ai';
 import { supabase } from './lib/supabaseClient';
 import { isAndroid } from './lib/platform';
 import type { User } from '@supabase/supabase-js';
@@ -42,8 +43,14 @@ function App() {
     const cur = settingsRef.current;
     if (!remote || !cur) return;
     const merged = { ...remote, accentColor: cur.accentColor, bgColor: cur.bgColor, cardColor: cur.cardColor, fontColor: cur.fontColor };
-    if (!merged.geminiModel) merged.geminiModel = DEFAULT_SETTINGS.geminiModel;
-    if (cur.geminiApiKey) merged.geminiApiKey = cur.geminiApiKey;
+    // Local keys and provider choice win; remote settings fill in what is missing.
+    Object.assign(merged, normalizeAiSettings({
+      aiProvider: remote.aiProvider ?? cur.aiProvider,
+      groqApiKey: cur.groqApiKey || remote.groqApiKey || '',
+      groqModel: remote.groqModel ?? cur.groqModel,
+      geminiApiKey: cur.geminiApiKey || remote.geminiApiKey || '',
+      geminiModel: remote.geminiModel ?? cur.geminiModel,
+    }));
     if (cur.dayStartHour !== DEFAULT_SETTINGS.dayStartHour) merged.dayStartHour = cur.dayStartHour;
     if (JSON.stringify(cur.targets) !== JSON.stringify(DEFAULT_SETTINGS.targets)) merged.targets = cur.targets;
     setSettings(merged);
@@ -257,7 +264,7 @@ function App() {
           {/* Journal column: logging + today's table */}
           <div className="min-w-0 space-y-5 md:space-y-6 order-2 lg:order-none lg:h-full lg:flex lg:flex-col">
             <section className="hidden md:block shrink-0">
-              <LogInput onLog={addEntry} apiKey={settings.geminiApiKey} model={settings.geminiModel} />
+              <LogInput onLog={addEntry} ai={settings} />
             </section>
 
             <section className="lg:flex lg:flex-col lg:flex-1 lg:min-h-0">
@@ -336,7 +343,7 @@ function App() {
 
       {view === 'dashboard' && (
       <div className="md:hidden fixed bottom-0 inset-x-0 z-40 p-3" style={{ backgroundColor: 'color-mix(in srgb, var(--bg, var(--background)) 96%, transparent)', borderTop: '1px solid var(--outlineVariant)' }}>
-        <LogInput onLog={addEntry} apiKey={settings.geminiApiKey} model={settings.geminiModel} />
+        <LogInput onLog={addEntry} ai={settings} />
       </div>
       )}
     </div>
